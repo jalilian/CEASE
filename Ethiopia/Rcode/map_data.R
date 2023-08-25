@@ -22,3 +22,16 @@ ggplot(eth_map) + geom_sf()
 
 # save map data as an R object of class sf
 saveRDS(eth_map, file="eth_map.rds")
+
+# download population data
+pop_link <- "https://data.humdata.org/dataset/3d9b037f-5112-4afd-92a7-190a9082bd80/resource/f82b20f1-8a76-46e9-ba9a-29e531f7af3c/download/eth_admpop_2023.xlsx"
+download.file(url=pop_link, destfile="eth_pop.xlsx")
+
+# read population data
+library("readxl")
+eth_pop <- read_excel("eth_pop.xlsx", 
+                      sheet="ETH_admpop_adm3_2023",
+                      range="A1:BD1085", 
+                      col_names=TRUE, na="")
+  
+library("dplyr")

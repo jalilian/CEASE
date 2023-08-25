@@ -7,7 +7,7 @@ The administrative divisions in Ethiopia have considerably changed over time, du
 A shapefile containing the boundaries of administrative divisions in Ethiopia is publicly available under the Creative Commons Attribution for Intergovernmental Organisations license on [humdata.com](https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0)
 
 The current version of the shapefile consists of
-- 13 level 1 administrative divisions (ADM1) known as regions
+- 13 level 1 administrative divisions (ADM1), 11 regional states and 2 chartered cities Addis Ababa and Dire Dawa
 - 32 level 2 administrative divisions (ADM2) refered to as zones
 - 1082 level 3 administrative divisions (ADM3) called woredas
 
@@ -18,7 +18,7 @@ Two woredas are represented in this shapefile because of their contested boundar
 
 ## Population data
 
-According to the [2022 Revision of World Population Prospects](https://population.un.org/wpp/), the total population of Ethiopia (as of 1 July) has change from 97 million in 2013 to 120 million in 2021.
+According to the [2022 Revision of World Population Prospects (UN WPP)](https://population.un.org/wpp/), the total population of Ethiopia (as of 1 July) has change from 97 million in 2013 to 120 million in 2021.
 
 |Year | Population (thousands) | Median age | Growth rate |
 | ---- | ---------- | ----- | ---- | 
@@ -32,3 +32,4 @@ According to the [2022 Revision of World Population Prospects](https://populatio
 2020	|  117 191	| 18.3	| 2.65% |
 2021	|  120 283	| 18.5	| 2.56% |
 
+The [Gridded Population of the World (GPW)](https://sedac.ciesin.columbia.edu/data/set/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-rev11) provided by the NASA Socioeconomic Data and Applications Center (SEDAC) consists of estimates of human population (number of persons per pixel) consistent with national censuses and population registers, but adjusted to match the 2015 Revision of the UN WPP country totals for the years 2000, 2005, 2010, 2015, and 2020.
