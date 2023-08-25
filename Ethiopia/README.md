@@ -1,6 +1,9 @@
 # Ethiopia
+Ethiopia is a country located in the Horn of Africa and has a diverse and dynamic demographic profile.
 
 ## Administrative divisions
+The administrative divisions in Ethiopia have considerably changed over time, due to the creation of new woredas, the merger of woredas, and the elevation of some woredas to city administrations.
+
 A shapefile containing the boundaries of administrative divisions in Ethiopia is publicly available under the Creative Commons Attribution for Intergovernmental Organisations license on [humdata.com](https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0)
 
 The current version of the shapefile consists of
