@@ -11,7 +11,7 @@ The current version of the shapefile consists of
 - 32 level 2 administrative divisions (ADM2) refered to as zones
 - 1082 level 3 administrative divisions (ADM3) called woredas
 
-![Administrative divisions of Ethiopia](/Ethiopia/Rcode/eth_map.png)
+![Administrative divisions of Ethiopia](/Ethiopia/eth_map.png)
 
 Two woredas are represented in this shapefile because of their contested boundaries: Dawe Serer (ET042199) in Oromia region and Quarsadula (ET050905) in Somali region.
 
@@ -34,6 +34,6 @@ According to the [2022 Revision of World Population Prospects (UN WPP)](https://
 
 The United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia also provides gender and age disaggregated estimates of administrative divisions of Ethiopia on [humdata.com](https://data.humdata.org/dataset/cod-ps-eth). 
 
-![Population of Ethiopia](/Ethiopia/Rcode/eth_pop.png)
+![Population of Ethiopia](/Ethiopia/eth_pop.png)
 
 Tigray region population estimation is based on 2012 (Ethiopian calendar) population breakdown at kebele level from the Tigray Statistical Authority and Population Sizy by Sex, Area and Density by Region, Zone and Woreda, July 2022 from federal Central Statistics Agency. According to this data, the total estimated population of Ethiopia is around 105 164 thousands. 
