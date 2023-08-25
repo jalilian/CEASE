@@ -4,7 +4,7 @@ Ethiopia is a country located in the Horn of Africa and has a diverse and dynami
 ## Administrative divisions
 The administrative divisions in Ethiopia have considerably changed over time, due to the creation of new woredas, the merger of woredas, and the elevation of some woredas to city administrations.
 
-A shapefile containing the boundaries of administrative divisions in Ethiopia is publicly available under the Creative Commons Attribution for Intergovernmental Organisations license on [humdata.com](https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0)
+A shapefile containing the boundaries of administrative divisions in Ethiopia is publicly available under the Creative Commons Attribution for Intergovernmental Organisations license by United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia on [humdata.com](https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0)
 
 The current version of the shapefile consists of
 - 13 level 1 administrative divisions (ADM1), 11 regional states and 2 chartered cities Addis Ababa and Dire Dawa
@@ -32,4 +32,4 @@ According to the [2022 Revision of World Population Prospects (UN WPP)](https://
 2020	|  117 191	| 18.3	| 2.65% |
 2021	|  120 283	| 18.5	| 2.56% |
 
-The [Gridded Population of the World (GPW)](https://sedac.ciesin.columbia.edu/data/set/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-rev11) provided by the NASA Socioeconomic Data and Applications Center (SEDAC) consists of estimates of human population (number of persons per pixel) consistent with national censuses and population registers, but adjusted to match the 2015 Revision of the UN WPP country totals for the years 2000, 2005, 2010, 2015, and 2020.
+The United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia also provides gender and age disaggregated estimates of administrative divisions of Ethiopia on [humdata.com](https://data.humdata.org/dataset/cod-ps-eth). According to this data, the total estimated population of Ethiopia is around 105164 thousands. 
