@@ -18,7 +18,7 @@ Two woredas are represented in this shapefile because of their contested boundar
 
 ## Population data
 
-as of 1 July
+According to the [2022 Revision of World Population Prospects](https://population.un.org/wpp/), the total population of Ethiopia (as of 1 July) has change from 97 million in 2013 to 120 million in 2021.
 
 |Year | Population (thousands) | Median age | Growth rate |
 | ---- | ---------- | ----- | ---- | 
