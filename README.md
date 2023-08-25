@@ -11,5 +11,7 @@ The current version of the shapefile consists of
 - 32 level 2 administrative boundaries (ADM2_EN) or zones
 - 1082 level 3 administrative boundaries (ADM3_EN) or woredas
 
+Two woredas are represented in this shapefile because of their contested boundaries: Dawe Serer (ET042199) in Oromia region and Quarsadula (ET050905) in Somali region.
+
 ### Population data
 
