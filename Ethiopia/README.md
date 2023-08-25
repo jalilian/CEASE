@@ -32,4 +32,6 @@ According to the [2022 Revision of World Population Prospects (UN WPP)](https://
 2020	|  117 191	| 18.3	| 2.65% |
 2021	|  120 283	| 18.5	| 2.56% |
 
-The United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia also provides gender and age disaggregated estimates of administrative divisions of Ethiopia on [humdata.com](https://data.humdata.org/dataset/cod-ps-eth). According to this data, the total estimated population of Ethiopia is around 105164 thousands. 
+The United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia also provides gender and age disaggregated estimates of administrative divisions of Ethiopia on [humdata.com](https://data.humdata.org/dataset/cod-ps-eth). 
+
+Tigray region population estimation is based on 2012 (Ethiopian calendar) population breakdown at kebele level from the Tigray Statistical Authority and Population Sizy by Sex, Area and Density by Region, Zone and Woreda, July 2022 from federal Central Statistics Agency. According to this data, the total estimated population of Ethiopia is around 105 164 thousands. 
