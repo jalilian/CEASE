@@ -18,3 +18,17 @@ Two woredas are represented in this shapefile because of their contested boundar
 
 ## Population data
 
+as of 1 July
+
+|Year | Population (thousands) | Median age | Growth rate |
+|____ | __________ | ______ | _____| 
+2013	|  97 084	| 16.7	| 2.70% |
+2014	|  99 747	| 17.0	| 2.71% |
+2015	|  102 472	| 17.2	| 2.68% |
+2016	|  105 293	| 17.4	| 2.75% |
+2017	|  108 198	| 17.7	| 2.70% |
+2018	|  111 129	| 17.9	| 2.65% |
+2019	|  114 121	| 18.1	| 2.66% |
+2020	|  117 191	| 18.3	| 2.65% |
+2021	|  120 283	| 18.5	| 2.56% |
+
