@@ -1,6 +1,12 @@
 # Ethiopia
 Ethiopia is a country located in the Horn of Africa and has a diverse and dynamic demographic profile.
 
+To access map and population data of administrative divisions in Ethiopia in [R], simply run the following command:
+```{r}
+eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/eth_map.rds"))
+```
+
+
 ## Administrative divisions
 The administrative divisions in Ethiopia have considerably changed over time, due to the creation of new woredas, the merger of woredas, and the elevation of some woredas to city administrations.
 
