@@ -1,6 +1,8 @@
 # Ethiopia
 Ethiopia is a country located in the Horn of Africa and has a diverse and dynamic demographic profile.
 
+A map of third-level administrative divisions of Ethiopia in 2015 is freely available on [Stanford Digital Repository](https://purl.stanford.edu/fx138hn5305) for academic and other non-commercial use. 
+
 To access map and population data of administrative divisions in Ethiopia in R, simply run the following command:
 ```R
 eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/eth_map.rds"))
