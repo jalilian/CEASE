@@ -17,7 +17,7 @@ The following command in ```R``` provides this map in [```sf```](https://cran.r-
 ```R
 eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2015_Stanford.rds"))
 ```
-![Administrative divisions of Ethiopia in 2015](/Ethiopia/eth_map_2015.png)
+![Administrative divisions of Ethiopia in 2015](/Ethiopia/images/eth_map_2015.png)
 
 ### OCHA map
 A shapefile containing the boundaries of administrative divisions in Ethiopia in 2021 is publicly available under the Creative Commons Attribution for Intergovernmental Organisations license by United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia on [humdata.com](https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0)
@@ -32,7 +32,7 @@ To access map and population data of administrative divisions in Ethiopia in ```
 eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/eth_map.rds"))
 ```
 
-![Administrative divisions of Ethiopia](/Ethiopia/eth_map.png)
+![Administrative divisions of Ethiopia](/Ethiopia/images/eth_map.png)
 
 Two woredas are represented in this shapefile because of their contested boundaries: Dawe Serer (ET042199) in Oromia region and Quarsadula (ET050905) in Somali region.
 
@@ -55,6 +55,6 @@ According to the [2022 Revision of World Population Prospects (UN WPP)](https://
 
 The United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia also provides gender and age disaggregated estimates of administrative divisions of Ethiopia on [humdata.com](https://data.humdata.org/dataset/cod-ps-eth). 
 
-![Population of Ethiopia](/Ethiopia/eth_pop.png)
+![Population of Ethiopia](/Ethiopia/images/eth_pop.png)
 
 Tigray region population estimation is based on 2012 (Ethiopian calendar) population breakdown at kebele level from the Tigray Statistical Authority and Population Sizy by Sex, Area and Density by Region, Zone and Woreda, July 2022 from federal Central Statistics Agency. According to this data, the total estimated population of Ethiopia is around 105 164 thousands. 
