@@ -9,7 +9,7 @@ The administrative divisions in Ethiopia have considerably changed over time, du
 A shapefile containing the boundaries of third-level administrative divisions in Ethiopia in 2015 is freely available on the [Stanford Digital Repository](https://purl.stanford.edu/fx138hn5305) for academic and other non-commercial use. 
 
 This shapefile consists of
-- 11 first-level administrative divisions (NAME_1), 9 regional states and 2 chartered cities Addis Ababa and Dire Dawa
+- 11 first-level administrative divisions (NAME_1), 9 regional states of Afar, Amhara, Benishangul-Gumuz, Gambela, Harari, Oromia, SNNP, Somali, and Tigray, and 2 chartered cities Addis Ababa and Dire Dawa
 - 72 second-level administrative divisions (NAME_2) or zones
 - 676 third-level administrative divisions (NAME_3) called woredas
 
