@@ -8,3 +8,9 @@ The main objectives for this project are:
 
 More information about this project is available on [MESA Alliance](https://mesamalaria.org/mesa-track/controlling-emergent-anopheles-stephensi-ethiopia-and-sudan-cease-project) website.
 
+## Data
+The following data sources are used for this project:
+-[Ethiopia]()
+  +Ethiopian Public Health Institute (EPHI) weekly malaria surveillance data
+
+-Sudan
