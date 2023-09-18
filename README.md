@@ -10,6 +10,6 @@ More information about this project is available on [MESA Alliance](https://mesa
 
 ## Data
 The following data sources are used for this project:
-- [Ethiopia]()
+- [Ethiopia](/Ethiopia/)
   + Ethiopian Public Health Institute (EPHI) weekly malaria surveillance data
 - Sudan
