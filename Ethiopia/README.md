@@ -6,7 +6,7 @@ Ethiopia is a country located in the Horn of Africa and has a diverse and dynami
 The administrative divisions in Ethiopia have considerably changed over time, due to the creation of new woredas, the merger of woredas, and the elevation of some woredas to city administrations.
 
 ### Stanford digital repository map
-A shapefile containing the boundaries of third-level administrative divisions of Ethiopia in 2015 is freely available on the [Stanford Digital Repository](https://purl.stanford.edu/fx138hn5305) for academic and other non-commercial use. 
+A shapefile containing the boundaries of third-level administrative divisions in Ethiopia in 2015 is freely available on the [Stanford Digital Repository](https://purl.stanford.edu/fx138hn5305) for academic and other non-commercial use. 
 
 This shapefile consists of
 - 11 level 1 administrative divisions (NAME_1), 9 regional states and 2 chartered cities Addis Ababa and Dire Dawa
@@ -17,9 +17,10 @@ The following command in ```R``` provides this map in [```sf```](https://cran.r-
 ```R
 eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2015_Stanford.rds"))
 ```
+![Administrative divisions of Ethiopia in 2015](/Ethiopia/eth_map_2015.png)
 
 ### OCHA map
-A shapefile containing the boundaries of administrative divisions in Ethiopia is publicly available under the Creative Commons Attribution for Intergovernmental Organisations license by United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia on [humdata.com](https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0)
+A shapefile containing the boundaries of administrative divisions in Ethiopia in 2021 is publicly available under the Creative Commons Attribution for Intergovernmental Organisations license by United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia on [humdata.com](https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0)
 
 The current version of the shapefile consists of
 - 13 level 1 administrative divisions (ADM1), 11 regional states and 2 chartered cities Addis Ababa and Dire Dawa
@@ -30,7 +31,6 @@ To access map and population data of administrative divisions in Ethiopia in ```
 ```R
 eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/eth_map.rds"))
 ```
-Details on administrative divisions of Ethiopia and population data in this R object are given below.
 
 ![Administrative divisions of Ethiopia](/Ethiopia/eth_map.png)
 
