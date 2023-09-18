@@ -1,12 +1,12 @@
 # Ethiopia
 Ethiopia is a country located in the Horn of Africa and has a diverse and dynamic demographic profile.
 
-A map of third-level administrative divisions of Ethiopia in 2015 is freely available on the [Stanford Digital Repository](https://purl.stanford.edu/fx138hn5305) for academic and other non-commercial use. It contains 11 regions, 78 zones, and 676 woredas. The following command in R provides this map in ```sf``` format: 
+A map of third-level administrative divisions of Ethiopia in 2015 is freely available on the [Stanford Digital Repository](https://purl.stanford.edu/fx138hn5305) for academic and other non-commercial use. It contains 11 regions, 78 zones, and 676 woredas. The following command in ```R``` provides this map in [```sf```](https://cran.r-project.org/package=sf) format: 
 ```R
 eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2015_Stanford.rds"))
 ```
 
-To access map and population data of administrative divisions in Ethiopia in R, simply run the following command:
+To access map and population data of administrative divisions in Ethiopia in ```R```, simply run the following command:
 ```R
 eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/eth_map.rds"))
 ```
