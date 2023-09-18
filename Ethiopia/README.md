@@ -25,7 +25,9 @@ eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_
 A shapefile containing the boundaries of administrative divisions in Ethiopia in 2021 is publicly available under the Creative Commons Attribution for Intergovernmental Organisations license by United Nations Office for the Coordination of Humanitarian Affairs (OCHA) country office in Ethiopia on [humdata.com](https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0)
 
 The current version of the shapefile consists of
-- 13 first-level administrative divisions (ADM1), 11 regional states and 2 chartered cities Addis Ababa and Dire Dawa
+- 13 first-level administrative divisions (ADM1)
+  + 11 regional states of Afar, Amhara, Benishangul Gumz, Gambela, Harari, SNNP, Sidama, Somali, South West Ethiopia, and Tigray
+  + 2 chartered cities Addis Ababa and Dire Dawa
 - 92 second-level administrative divisions (ADM2) refered to as zones
 - 1082 third-level administrative divisions (ADM3) called woredas
 
