@@ -23,7 +23,7 @@ eth_data <-
   # transform Month to a factor
   mutate(Month=factor(Month, levels=month.name)) %>%
   # convert year and week to date
-  #!!! what does Epidemic week means?
+  #!!! what does Epidemic week mean?
   # Is it week starting from 1st of January each year?
   mutate(date1=ymd(paste(Year, "01", "01", sep="-")) + 
            weeks(Epidemic_Week)) %>%
