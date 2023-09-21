@@ -167,7 +167,7 @@ eth_data <- eth_data %>%
                       .default=ZoneName)) %>%
   #!!! fixing the issue with Finfine zone 
   mutate(ZoneName2= 
-           case_match(ZoneName2,
+           case_match(WoredaName,
                       "Akaki" ~ "East Shewa",
                       "Berreh" ~ "North Shewa",
                       "Holeta" ~ "West Shewa",
