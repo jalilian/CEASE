@@ -102,4 +102,5 @@ eth_map <- eth_map %>%
   mutate(NAME_2=str_replace(NAME_2, "Misraq", "East")) %>%
   mutate(NAME_2=str_replace(NAME_2, "Mirab", "West"))
 
+# save map data as an R object of class sf
 saveRDS(eth_map, file="ETH_Admin_2015_Stanford.rds")
