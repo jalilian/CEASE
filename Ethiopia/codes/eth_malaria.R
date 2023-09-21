@@ -107,6 +107,9 @@ eth_data <- eth_data %>%
                       "Nuwer" ~ "Nuer",
                       "Etang Spe." ~ "Agnuak",
                       # Oromia region
+                      "East Hararge" ~ "East Hararghe",
+                      "West Hararge" ~ "West Hararghe",
+                      "West Wellega" ~ "West Welega",
                       "South Gonder" ~ "South Gondar",
                       "Adama Special Town" ~ "East Shewa",
                       "Ambo town" ~ "West Shewa",

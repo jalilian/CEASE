@@ -102,6 +102,7 @@ eth_map <- eth_map %>%
                       "Southawi" ~ "South Tigray",
                       "Mehakelegnaw" ~ "Central Tigray",
                       "Semien Mi'irabaw" ~ "North Western Tigray",
+                      "East Harerge" ~ "East Hararghe",
                       .default=NAME_2))
 
 # save map data as an R object of class sf
