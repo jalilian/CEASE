@@ -176,6 +176,9 @@ eth_data <- eth_data %>%
                       "Zone Level" ~ NA,
                       .default=ZoneName2))
 
+# old and new names of zones
+eth_data %>% count(ZoneName, ZoneName2)  %>% print(n=500)
+
 # check the matching 
 require("stringdist")
 # a function for matching based on dissimilarity distance
@@ -199,7 +202,7 @@ for (region in unique(eth_map$NAME_1))
 {
   a <- unique(eth_data %>% 
                 filter(RegionName == region) %>% 
-                pull(ZoneName))
+                pull(ZoneName2))
   b <- unique(eth_map %>% 
                 filter(NAME_1 == region) %>% 
                 pull(NAME_2))
@@ -209,7 +212,7 @@ for (region in unique(eth_map$NAME_1))
 # checking discrepancies
 # empty (NULL) list means no discrepancy
 lapply(discrap, function(o){ 
-  a <- colnames(o)
+  a <- rownames(o)
   b <- o[, 1]
   idx <- a != b
   cbind(a[idx], b[idx])
