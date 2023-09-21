@@ -71,10 +71,11 @@ eth_map <- read_sf("eth_map_2015/",
 library("ggplot2")
 ggplot(eth_map) + geom_sf()
 
-# change some spellings
+# change some names and spellings
 library("dplyr")
 library("stringr")
 eth_map <- eth_map %>%
+  # regions
   mutate(NAME_1=
            case_match(NAME_1,
                       "Addis Abeba" ~ "Addis Ababa",
@@ -83,6 +84,11 @@ eth_map <- eth_map %>%
                       "Harari People" ~ "Harari",
                       "Southern Nations, Nationalities and Peoples" ~ "SNNP",
                       .default=NAME_1)) %>%
+  # zones
+  mutate(NAME_2=str_replace(NAME_2, "Semen", "North")) %>%
+  mutate(NAME_2=str_replace(NAME_2, "Debub", "South")) %>%
+  mutate(NAME_2=str_replace(NAME_2, "Misraq", "East")) %>%
+  mutate(NAME_2=str_replace(NAME_2, "Mirab", "West")) %>%
   mutate(NAME_2=
            case_match(NAME_2,
                       "Addis Abeba" ~ "Addis Ababa",
@@ -96,11 +102,7 @@ eth_map <- eth_map %>%
                       "Southawi" ~ "South Tigray",
                       "Mehakelegnaw" ~ "Central Tigray",
                       "Semien Mi'irabaw" ~ "North Western Tigray",
-                      .default=NAME_2)) %>%
-  mutate(NAME_2=str_replace(NAME_2, "Semen", "North")) %>%
-  mutate(NAME_2=str_replace(NAME_2, "Debub", "South")) %>%
-  mutate(NAME_2=str_replace(NAME_2, "Misraq", "East")) %>%
-  mutate(NAME_2=str_replace(NAME_2, "Mirab", "West"))
+                      .default=NAME_2))
 
 # save map data as an R object of class sf
 saveRDS(eth_map, file="ETH_Admin_2015_Stanford.rds")

@@ -72,7 +72,7 @@ eth_data <- eth_data %>%
            case_match(ZoneName,
                       # Addis Ababa region
                       "Addis Ketema" ~ "Addis Ababa",
-                      "Akaki Kaliti" ~ "Akaki Kaliti",
+                      "Akaki Kaliti" ~ "Addis Ababa",
                       "Arada" ~ "Addis Ababa",
                       "Bole" ~ "Addis Ababa",
                       "Chirkos" ~ "Addis Ababa",
@@ -107,6 +107,7 @@ eth_data <- eth_data %>%
                       "Nuwer" ~ "Nuer",
                       "Etang Spe." ~ "Agnuak",
                       # Oromia region
+                      "South Gonder" ~ "South Gondar",
                       "Adama Special Town" ~ "East Shewa",
                       "Ambo town" ~ "West Shewa",
                       "Assela Town" ~ "Arsi",
