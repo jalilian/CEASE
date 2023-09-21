@@ -4,7 +4,8 @@ temp_dir <- "/tmp/eth"
 dir.create(temp_dir)
 setwd(temp_dir)
 
-# download map data
+# =========================================================
+# download OCHA map data
 map_link <- "https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0/resource/63c4a9af-53a7-455b-a4d2-adcc22b48d28/download/eth_adm_csa_bofedb_2021_shp.zip"
 download.file(url=map_link, destfile="eth_map.zip")
 
@@ -51,3 +52,54 @@ ggplot(eth_map) + geom_sf(aes(fill=Total))
 
 # save map data as an R object of class sf
 saveRDS(eth_map, file="ETH_Admin_2021_OCHA.rds")
+
+# =========================================================
+# download Stanford digital repository map data
+# https://purl.stanford.edu/fx138hn5305
+map_link <- "https://stacks.stanford.edu/file/druid:fx138hn5305/data.zip?download=true"
+download.file(url=map_link, destfile="eth_map.zip")
+
+# extract Zip file
+unzip(zipfile="eth_map.zip", exdir="eth_map_2015/")
+
+# read map data
+library("sf")
+eth_map <- read_sf("eth_map_2015/",
+                   layer="ETH_adm3")
+
+# plot map data
+library("ggplot2")
+ggplot(eth_map) + geom_sf()
+
+# change some spellings
+library("dplyr")
+library("stringr")
+eth_map <- eth_map %>%
+  mutate(NAME_1=
+           case_match(NAME_1,
+                      "Addis Abeba" ~ "Addis Ababa",
+                      "Benshangul-Gumaz" ~ "Benishangul-Gumuz",
+                      "Gambela Peoples" ~ "Gambela",
+                      "Harari People" ~ "Harari",
+                      "Southern Nations, Nationalities and Peoples" ~ "SNNP",
+                      .default=NAME_1)) %>%
+  mutate(NAME_2=
+           case_match(NAME_2,
+                      "Addis Abeba" ~ "Addis Ababa",
+                      "Hareri" ~ "Harari",
+                      "North Wello" ~ "North Wollo",
+                      "Kemashi" ~ "Kamashi",
+                      "Horo Guduru" ~ "Horo Gudru Wellega",
+                      "Siti" ~ "Sitti",
+                      "Eastawi" ~ "Eastern Tigray",
+                      "Mi'irabawi" ~ "Western Tigray",
+                      "Southawi" ~ "South Tigray",
+                      "Mehakelegnaw" ~ "Central Tigray",
+                      "Semien Mi'irabaw" ~ "North Western Tigray",
+                      .default=NAME_2)) %>%
+  mutate(NAME_2=str_replace(NAME_2, "Semen", "North")) %>%
+  mutate(NAME_2=str_replace(NAME_2, "Debub", "South")) %>%
+  mutate(NAME_2=str_replace(NAME_2, "Misraq", "East")) %>%
+  mutate(NAME_2=str_replace(NAME_2, "Mirab", "West"))
+
+saveRDS(eth_map, file="ETH_Admin_2015_Stanford.rds")
