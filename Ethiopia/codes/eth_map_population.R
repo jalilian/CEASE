@@ -50,4 +50,4 @@ eth_map <- eth_map %>%
 ggplot(eth_map) + geom_sf(aes(fill=Total))
 
 # save map data as an R object of class sf
-saveRDS(eth_map, file="eth_map.rds")
+saveRDS(eth_map, file="ETH_Admin_2021_OCHA.rds")
