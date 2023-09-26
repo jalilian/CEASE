@@ -63,6 +63,7 @@ eth_data <- eth_data %>%
            case_match(RegionName,
                       "Gambella" ~ "Gambela",
                       "SNNPR" ~ "SNNP",
+                      "SWEPRS\r\r\n" ~ "South West",
                       .default=RegionName)) %>%
   # change name and spelling of some zones
   # stor modified zone names in the new variable ZoneName2
@@ -249,15 +250,17 @@ sdistmatch <- function(a, b)
 
 # matching region by region
 discrap <- list()
-for (region in unique(eth_map$NAME_1))
+for (region in unique(eth_map$ADM1_EN))
 {
+  cat(region, ": ")
   a <- unique(eth_data %>% 
                 filter(RegionName == region) %>% 
                 pull(ZoneName2))
   b <- unique(eth_map %>% 
-                filter(NAME_1 == region) %>% 
-                pull(NAME_2))
+                filter(ADM1_EN == region) %>% 
+                pull(ADM2_EN))
   discrap[[region]] <- sdistmatch(a, b)
+  cat(" done\n")
 }
 
 # checking discrepancies
