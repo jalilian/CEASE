@@ -56,7 +56,11 @@ eth_map <- eth_map %>%
            case_match(ADM1_EN, 
                       "Benishangul Gumz" ~ "Benishangul-Gumuz",
                       "South West Ethiopia" ~ "South West",
-                      .default=ADM1_EN))
+                      .default=ADM1_EN),
+         ADM2_EN=
+           case_match(ADM2_EN,
+                      "Region 14" ~ "Addis Ababa",
+                      .default=ADM2_EN))
 
 # save map data as an R object of class sf
 saveRDS(eth_map, file="ETH_Admin_2021_OCHA.rds")
