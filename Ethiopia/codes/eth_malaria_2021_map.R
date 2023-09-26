@@ -207,6 +207,8 @@ eth_data <- eth_data %>%
                       "Konso" ~ "Konso",
                       "Silte" ~ "Siltie",
                       "Yem" ~ "Yem Special",
+                      # AJ additions
+                      
                       # Sidama region
                       "Hawassa Town" ~ "Sidama",
                       "Hawella Tulla" ~ "Sidama",
