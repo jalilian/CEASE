@@ -232,7 +232,21 @@ eth_data <- eth_data %>%
     RegionName == "Amhara" & ZoneName == "North Shewa" ~ "North Shewa (AM)",
     RegionName == "Oromia" & ZoneName == "North Shewa" ~ "North Shewa (OR)",
     TRUE ~ ZoneName2
+  )) %>%
+  # fixing separation of Sidama and South West regions from SNNP
+  mutate(RegionName2=case_when(
+    RegionName == "SNNP" & ZoneName2 == "Sidama" ~ "Sidama",
+    RegionName == "SNNP" & ZoneName2 == "Bench Sheko" ~ "South West",
+    RegionName == "SNNP" & ZoneName2 == "Dawuro" ~ "South West",
+    RegionName == "SNNP" & ZoneName2 == "Kefa" ~ "South West",
+    RegionName == "SNNP" & ZoneName2 == "Konta Special" ~ "South West",
+    RegionName == "SNNP" & ZoneName2 == "Sheka" ~ "South West",
+    TRUE ~ RegionName
   ))
+  # fixing establishment of South West region
+
+# old and new names of regions
+eth_data %>% count(RegionName, RegionName2)  %>% print(n=500)
 
 # old and new names of zones
 eth_data %>% count(ZoneName, ZoneName2)  %>% print(n=500)
@@ -260,7 +274,7 @@ for (region in unique(eth_map$ADM1_EN))
 {
   cat(region, ": ")
   a <- unique(eth_data %>% 
-                filter(RegionName == region) %>% 
+                filter(RegionName2 == region) %>% 
                 pull(ZoneName2))
   b <- unique(eth_map %>% 
                 filter(ADM1_EN == region) %>% 
@@ -277,3 +291,4 @@ lapply(discrap, function(o){
   idx <- a != b
   cbind(a[idx], b[idx])
   })
+
