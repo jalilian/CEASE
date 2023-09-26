@@ -44,8 +44,8 @@ eth_data <-
 
 # Extract 2013-2019: 
 # excluding missing weeks in 2020-2021 and spars weeks in 2022
-eth_data <- eth_data %>%
-  filter(Year <= 2019) 
+#eth_data <- eth_data %>%
+#  filter(Year <= 2019) 
 
 # =========================================================
 # read map of administrative divisions of Ethiopia in 2021
@@ -98,7 +98,7 @@ eth_data <- eth_data %>%
                       "Gonder Town" ~ "Central Gondar",
                       "North Gondar" ~ "North Gondar",
                       "North Shewa" ~ "North Shewa (AM)",
-                      "North Wollo" ~ "North Wollo",
+                      "North Wollo" ~ "North Wello",
                       "Oromiya" ~ "Oromia",
                       "South Gonder" ~ "South Gondar",
                       "South Wollo" ~ "South Wello",
@@ -153,7 +153,7 @@ eth_data <- eth_data %>%
                       "West Shewa" ~ "West Shewa",
                       "West Wellega" ~ "West Wellega",
                       "Buno Bedele" ~ "Buno Bedele",
-                      "west Guji" ~ "West Guj",
+                      "west Guji" ~ "West Guji",
                       "Ambo town" ~ "West Shewa",
                       "Holeta town" ~ "Finfine Special",
                       "Modjo town" ~ "East Shewa",
@@ -176,7 +176,7 @@ eth_data <- eth_data %>%
                       "SHABEELE" ~ "Shabelle",
                       "SITTI" ~ "Siti",
                       "Dhewa" ~ "Daawa",
-                      "Erar" ~ "Erar",
+                      "Erar" ~ "Erer",
                       "Nogob" ~ "Nogob",
                       # SNNP region
                       "Basketo Town" ~ "Basketo",
@@ -207,8 +207,6 @@ eth_data <- eth_data %>%
                       "Konso" ~ "Konso",
                       "Silte" ~ "Siltie",
                       "Yem" ~ "Yem Special",
-                      # AJ additions
-                      
                       # Sidama region
                       "Hawassa Town" ~ "Sidama",
                       "Hawella Tulla" ~ "Sidama",
@@ -228,7 +226,13 @@ eth_data <- eth_data %>%
                       "South East" ~ "South Eastern",
                       "South Tigray" ~ "Southern",
                       "Western Tigray" ~ "Western",
-                      .default=ZoneName))
+                      .default=ZoneName)) %>%
+  # fixing renaming of North Shewa zone in two regions
+  mutate(ZoneName2=case_when(
+    RegionName == "Amhara" & ZoneName == "North Shewa" ~ "North Shewa (AM)",
+    RegionName == "Oromia" & ZoneName == "North Shewa" ~ "North Shewa (OR)",
+    TRUE ~ ZoneName2
+  ))
 
 # old and new names of zones
 eth_data %>% count(ZoneName, ZoneName2)  %>% print(n=500)
