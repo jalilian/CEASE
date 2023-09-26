@@ -292,3 +292,10 @@ lapply(discrap, function(o){
   cbind(a[idx], b[idx])
   })
 
+unique(eth_map %>% pull(ADM2_EN))[ !
+  unique(eth_map %>% pull(ADM2_EN)) %in% unique(eth_data %>% pull(ZoneName2))
+]
+# =========================================================
+
+eth_data %>% count(Year, Epidemic_Week, ZoneName2) %>%
+  count(ZoneName2) %>% arrange(n) %>% print(n=100)
