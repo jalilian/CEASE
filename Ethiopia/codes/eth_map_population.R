@@ -60,7 +60,6 @@ eth_map <- eth_map %>%
          ADM2_EN=
            case_match(ADM2_EN,
                       "Region 14" ~ "Addis Ababa",
-                      "North Wello" ~ "North Wollo",
                       .default=ADM2_EN))
 
 # save map data as an R object of class sf
