@@ -297,5 +297,29 @@ unique(eth_map %>% pull(ADM2_EN))[ !
 ]
 # =========================================================
 
-eth_data %>% count(Year, Epidemic_Week, ZoneName2) %>%
-  count(ZoneName2) %>% arrange(n) %>% print(n=100)
+eth_data %>% 
+  count(Year, Epidemic_Week, RegionName2, ZoneName2) %>%
+  count(RegionName2, ZoneName2) %>% arrange(n) %>% print(n=100)
+
+# by region
+expand_grid(RegionName2=unique(eth_data %>% pull(RegionName2)),
+            Year=2013:2022, Epidemic_Week=1:52) %>%
+  left_join(
+    eth_data %>% 
+      count(RegionName2, Year, Epidemic_Week)
+  ) %>%
+  filter(is.na(n)) %>%
+  select(-n) %>% 
+  write_csv(file="~/Desktop/missing_records_region.csv")
+
+# by zone
+expand_grid(RegionName2=unique(eth_data %>% pull(RegionName2)),
+            ZoneName2=unique(eth_data %>% pull(ZoneName2)),
+            Year=2013:2022, Epidemic_Week=1:52) %>%
+  left_join(
+    eth_data %>% 
+      count(RegionName2, ZoneName2, Year, Epidemic_Week)
+  ) %>%
+  filter(is.na(n)) %>%
+  select(-n) %>% 
+  write_csv(file="~/Desktop/missing_records_zone.csv")
