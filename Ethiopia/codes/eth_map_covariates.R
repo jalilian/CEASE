@@ -166,7 +166,7 @@ land_data_fun <- function(year,
         exdir=paste0(temp_dir, year, "/"), 
         overwrite=TRUE)
   
-  # open nc file containing the data
+  # open netCDF file containing the data
   nc_data <- nc_open(paste0(temp_dir, year, "/data.nc"))
   
   # extract longitude
@@ -192,6 +192,7 @@ land_data_fun <- function(year,
       idx_3 <- which.min(idx_3)
       vals <- vals[, , idx_3, ]
     }
+    
     dimnames(vals) <- 
       list(longitude=1:length(lon), 
            latitude=1:length(lat),
@@ -201,19 +202,43 @@ land_data_fun <- function(year,
     dat[[i]] <- dat[[i]] %>%
       mutate(longitude=lon[longitude],
              latitude=lat[latitude],
-             time=dt[time]) %>%
-      setNames(c(colnames(dat[[i]])[1:3], 
-                 vars[i]))
+             time=dt[time]) 
+    
+    # aggregate by the US CDC version of epidemiological year and week
+    dat[[i]] <- dat[[i]] %>%
+      mutate(epi_year=epiyear(time), 
+             epi_week=epiweek(time)) %>%
+      group_by(longitude, latitude, 
+               epi_year, epi_week) %>%
+      summarise(mean=mean(Freq),
+                min=min(Freq),
+                max=max(Freq),
+                sd=sd(Freq)) %>%
+      ungroup()
+    # rename columns
+    dat[[i]] <- dat[[i]] %>% 
+      setNames(c(
+        colnames(dat[[i]])[1:4],
+        paste(vars[i], 
+              c("mean", "min", "max", "sd"), sep="_")
+      ))
   }
   
-  dat %>% reduce(full_join, 
-                 by = join_by(longitude, 
-                              latitude, 
-                              time))
+  # close the open netCDF file
+  nc_close(nc_data)
+  
+  dat <- dat %>% 
+    reduce(full_join, 
+           by = join_by(longitude, 
+                        latitude, 
+                        time))
 }
 
 land_covars <- 
   lapply(2013:2019, land_data_fun)
+
+# garbage collection to reduce memory usage
+gc(verbose=TRUE, full=TRUE)
 
 land_covars <- land_covars %>% 
   reduce(full_join)
