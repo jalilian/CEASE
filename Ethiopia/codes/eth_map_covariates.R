@@ -200,27 +200,16 @@ land_data_fun <- function(year,
       mutate(longitude=lon[longitude],
              latitude=lat[latitude],
              time=dt[time]) %>%
-      mutate(year=substr(time, 1, 4), 
-             month=substr(time, 6, 7),
-             day=substr(time, 9, 10)) %>%
-      group_by(longitude, latitude, year, month, day) %>%
-      summarise(mean=mean(Freq),
-                min=min(Freq),
-                max=max(Freq),
-                sd=sd(Freq)) 
-    dat[[i]] <- dat[[i]] %>%
-      setNames(c(
-        colnames(dat[[i]])[1:4],
-        paste(vars[i], 
-              c("mean", "min", "max", "sd"), sep="_")
-      ))
+      setNames(c(colnames(dat[[i]])[1:3], 
+                 vars[i]))
   }
   
   dat %>% reduce(full_join, 
-                 by = join_by(longitude, latitude, 
-                              year, month))
-  
+                 by = join_by(longitude, 
+                              latitude, 
+                              time))
 }
 
-aa <- land_data_fun(2013)
+land_covars <- 
+  lapply(2013:2019, land_data_fun)
 
