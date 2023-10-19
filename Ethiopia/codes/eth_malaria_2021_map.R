@@ -301,6 +301,8 @@ eth_data %>%
   count(Year, Epidemic_Week, RegionName2, ZoneName2) %>%
   count(RegionName2, ZoneName2) %>% arrange(n) %>% print(n=100)
 
+saveRDS(eth_data, file=paste0(data_path, "eth_data.rds"))
+
 # by region
 expand_grid(RegionName2=unique(eth_data %>% pull(RegionName2)),
             Year=2013:2022, Epidemic_Week=1:52) %>%
