@@ -157,6 +157,8 @@ land_data_fun <- function(year,
              request=request,
              transfer=TRUE, 
              path=getwd(),
+             # waiting time for download to start
+             time_out=3 * 60 * 60,
              verbose=TRUE)
   
   # extract downloaded Zip file
@@ -213,3 +215,5 @@ land_data_fun <- function(year,
 land_covars <- 
   lapply(2013:2019, land_data_fun)
 
+land_covars <- land_covars %>% 
+  reduce(full_join)
