@@ -100,6 +100,8 @@ covars <-
 
 # =========================================================
 library("ecmwfr")
+library("ncdf4")
+library("ncdf4.helpers")
 
 # European Centre for Medium-Range Weather Forecasts (ECMWF) 
 # Copernicus's Climate Data Store (CDS)
@@ -116,6 +118,10 @@ wf_set_key(user=user, key=cds.key, service="cds")
 land_data_fun <- function(year, 
                           temp_dir="/tmp/eth_land/")
 {
+  # create a temporary directory to extract the downloaded file
+  dir.create(temp_dir)
+  setwd(temp_dir)
+  
   # request for getting land data
   request <- list(
     # dataset name
@@ -140,8 +146,7 @@ land_data_fun <- function(year,
     # output file format
     format = "netcdf.zip",
     # output file name
-    target = paste0(temp_dir, 
-                    "landvars_hourly.zip")
+    target = paste0("landvars_hourly_", year, ".zip")
   )
   
   # check the validity of a data request and login credentials
@@ -153,17 +158,15 @@ land_data_fun <- function(year,
              transfer=TRUE, 
              path=getwd(),
              verbose=TRUE)
-}
-
-aa <- land_data_fun(2013:2019)
-
-library("ncdf4")
-library("ncdf4.helpers")
-library("tidyverse")
-
-# convert nc data to an R data.frame
-to_df_fun <- function(nc_data)
-{
+  
+  # extract downloaded Zip file
+  unzip(zipfile=paste0(temp_dir, "landvars_hourly_", year, ".zip"), 
+        exdir=paste0(temp_dir, year, "/"), 
+        overwrite=TRUE)
+  
+  # open nc file containing the data
+  nc_data <- nc_open(paste0(temp_dir, year, "/data.nc"))
+  
   # extract longitude
   lon <- ncvar_get(nc_data, "longitude")
   # extract latitude
@@ -173,6 +176,7 @@ to_df_fun <- function(nc_data)
   # list of names of data variables
   vars <- nc.get.variable.list(nc_data)
   
+  # convert nc data to an R data.frame
   dat <- vector("list", length=length(vars))
   for (i in 1:length(vars))
   {
@@ -197,8 +201,9 @@ to_df_fun <- function(nc_data)
              latitude=lat[latitude],
              time=dt[time]) %>%
       mutate(year=substr(time, 1, 4), 
-             month=substr(time, 6, 7)) %>%
-      group_by(longitude, latitude, year, month) %>%
+             month=substr(time, 6, 7),
+             day=substr(time, 9, 10)) %>%
+      group_by(longitude, latitude, year, month, day) %>%
       summarise(mean=mean(Freq),
                 min=min(Freq),
                 max=max(Freq),
@@ -214,4 +219,8 @@ to_df_fun <- function(nc_data)
   dat %>% reduce(full_join, 
                  by = join_by(longitude, latitude, 
                               year, month))
+  
 }
+
+aa <- land_data_fun(2013)
+
