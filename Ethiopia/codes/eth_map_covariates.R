@@ -42,6 +42,16 @@ africa_land_cover <-
     "ESACCI-LC-L4-LC10-Map-20m-P1Y-2016-v1.0.tif"
   )
 
+# Void-filled digital elevation mode of Africa, 2007 [ArcGRID]
+# resolution: 15s resolution
+# provided by World Wildlife Fund. Africa, U.S. Geological Survey
+# https://maps.princeton.edu/catalog/stanford-jm998sr5227 
+africa_elevation <- 
+  extract_raster_data(
+    "~/Downloads/data.zip",
+    "af_dem_15s/"
+  )
+
 # =========================================================
 # plot population density and land cover for the whole country
 library("tidyterra")
@@ -55,7 +65,7 @@ ggplot() +
                   aes(fill=`ESACCI-LC-L4-LC10-Map-20m-P1Y-2016-v1.0`))
 
 # =========================================================
-# extract population density and land cover data for map units
+# extract population density, land cover, and elevation data for map units
 
 # merge Woreds in each zone
 map <- 
@@ -64,38 +74,64 @@ map <-
   summarise(geometry = sf::st_union(geometry)) %>%
   ungroup()
 
+rm(pop_density, africa_land_cover, africa_elevation)
+
 # extract covariates
-covar_fun <- function(map_unit)
+covar_fun <- function(map)
 {
-  cp1 <- terra::crop(pop_density, map_unit)
-  cp1 <- terra::mask(cp1, map_unit)
-  cp1 <- values(cp1)
-  cp1 <- cp1[!is.na(cp1)]
   
-  cp2 <- terra::crop(africa_land_cover, map_unit)
-  cp2 <- terra::mask(cp2, map_unit)
-  cp2 <- values(cp2)
-  cp2 <- cp2[!is.na(cp2)]
-  cp2 <- sort(table(cp2), decreasing=TRUE)
-  cp2 <- round(100 * cp2[1] / sum(cp2), 2)
+  raster_1 <- terra::crop(pop_density, 
+                          map %>% 
+                            summarise(geometry=st_union(geometry)),
+                          mask=TRUE, touches=TRUE)
+  raster_2 <- terra::crop(africa_land_cover, 
+                          map %>% 
+                            summarise(geometry=st_union(geometry)), 
+                          mask=TRUE, touches=TRUE)
+  raster_3 <- terra::crop(africa_elevation, 
+                          map %>% 
+                            summarise(geometry=st_union(geometry)), 
+                          mask=TRUE, touches=TRUE)
   
-  return(c(popdens_mean=mean(cp1), 
-           popdens_sd=sd(cp1), 
-           landcov_mode=as.integer(names(cp2)),
-           landcov_percent=unname(cp2)))
+  out <- vector("list", length=nrow(map))
+  for (i in 1:nrow(map))
+  {
+    cp1 <- terra::crop(raster_1, map[i, ], mask=TRUE, touches=TRUE)
+    cp1 <- values(cp1)
+    cp1 <- cp1[!is.na(cp1)]
+    
+    cp2 <- terra::crop(raster_2, map[i, ], mask=TRUE, touches=TRUE)
+    cp2 <- values(cp2)
+    cp2 <- cp2[!is.na(cp2)]
+    cp2 <- sort(table(cp2), decreasing=TRUE)
+    cp2 <- round(100 * cp2[1] / sum(cp2), 2)
+    
+    cp3 <- terra::crop(raster_3, map[i, ], mask=TRUE, touches=TRUE)
+    cp3 <- values(cp3)
+    cp3 <- cp3[!is.na(cp3)]
+    
+    gc()
+    
+    out[[i]] <- 
+      c(popdens_mean=mean(cp1), 
+        popdens_sd=sd(cp1), 
+        landcov_mode=as.integer(names(cp2)),
+        landcov_percent=unname(cp2),
+        elevation_mean=mean(cp3), 
+        elevation_sd=sd(cp3))
+  }
+  
+  return(out)
 }
 
-covars <- 
-  parallel::mclapply(split(map, 1:nrow(map)),
-                     covar_fun, 
-                     mc.cores=1)
+
+covars <- covar_fun(map)
 
 covars <- 
   bind_cols(ADM2_EN=
               unique(eth_map %>% 
                        pull(ADM2_EN)), 
             bind_rows(covars))
-
 
 
 # =========================================================
