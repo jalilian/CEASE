@@ -229,13 +229,12 @@ land_data_fun <- function(year,
   
   dat <- dat %>% 
     reduce(full_join, 
-           by = join_by(longitude, 
-                        latitude, 
-                        time))
+           by = join_by(longitude, latitude, 
+                        epi_year, epi_week))
 }
 
 land_covars <- 
-  lapply(2013:2019, land_data_fun)
+  lapply(2013:2022, land_data_fun)
 
 # garbage collection to reduce memory usage
 gc(verbose=TRUE, full=TRUE)
