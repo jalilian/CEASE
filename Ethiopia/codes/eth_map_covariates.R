@@ -95,3 +95,123 @@ covars <-
               unique(eth_map %>% 
                        pull(ADM2_EN)), 
             bind_rows(covars))
+
+
+
+# =========================================================
+library("ecmwfr")
+
+# European Centre for Medium-Range Weather Forecasts (ECMWF) 
+# Copernicus's Climate Data Store (CDS)
+# https://cds.climate.copernicus.eu
+# DOI: 10.24381/cds.e2161bac
+
+# user credentials
+user <- "****************"
+cds.key <- "********************************"
+
+# set secret ECMWF token
+wf_set_key(user=user, key=cds.key, service="cds")
+
+land_data_fun <- function(year, 
+                          temp_dir="/tmp/eth_land/")
+{
+  # request for getting land data
+  request <- list(
+    # dataset name
+    dataset_short_name = "reanalysis-era5-land",
+    # climate variables 
+    variable = c("10m_u_component_of_wind", 
+                 "10m_v_component_of_wind", 
+                 "leaf_area_index_high_vegetation", 
+                 "leaf_area_index_low_vegetation", 
+                 "skin_temperature", 
+                 "surface_pressure",
+                 "total_precipitation", 
+                 "volumetric_soil_water_layer_1"),
+    # temporal framework: year, month, day, hour
+    year = as.character(year),
+    month = sprintf("%02d", 1:12),
+    day = sprintf("%02d", 1:31),
+    time = "00:00",
+    # geographical region
+    #      North, West, South, East
+    area = c(14.9, 32.9, 3.4, 48),
+    # output file format
+    format = "netcdf.zip",
+    # output file name
+    target = paste0(temp_dir, 
+                    "landvars_hourly.zip")
+  )
+  
+  # check the validity of a data request and login credentials
+  wf_check_request(user=user, request=request)
+  
+  # download the data request
+  wf_request(user=user, 
+             request=request,
+             transfer=TRUE, 
+             path=getwd(),
+             verbose=TRUE)
+}
+
+aa <- land_data_fun(2013:2019)
+
+library("ncdf4")
+library("ncdf4.helpers")
+library("tidyverse")
+
+# convert nc data to an R data.frame
+to_df_fun <- function(nc_data)
+{
+  # extract longitude
+  lon <- ncvar_get(nc_data, "longitude")
+  # extract latitude
+  lat <- ncvar_get(nc_data, "latitude")
+  # extract date and time
+  dt <- nc.get.time.series(nc_data)
+  # list of names of data variables
+  vars <- nc.get.variable.list(nc_data)
+  
+  dat <- vector("list", length=length(vars))
+  for (i in 1:length(vars))
+  {
+    vals <- ncvar_get(nc_data, vars[i])
+    if (length(dim(vals)) > 3)
+    {
+      idx_3 <- 
+        apply(vals, MARGIN=3, 
+              function(x){ mean(is.na(x)) } 
+        )
+      idx_3 <- which.min(idx_3)
+      vals <- vals[, , idx_3, ]
+    }
+    dimnames(vals) <- 
+      list(longitude=1:length(lon), 
+           latitude=1:length(lat),
+           time=1:length(dt))
+    
+    dat[[i]] <- as.data.frame.table(vals)
+    dat[[i]] <- dat[[i]] %>%
+      mutate(longitude=lon[longitude],
+             latitude=lat[latitude],
+             time=dt[time]) %>%
+      mutate(year=substr(time, 1, 4), 
+             month=substr(time, 6, 7)) %>%
+      group_by(longitude, latitude, year, month) %>%
+      summarise(mean=mean(Freq),
+                min=min(Freq),
+                max=max(Freq),
+                sd=sd(Freq)) 
+    dat[[i]] <- dat[[i]] %>%
+      setNames(c(
+        colnames(dat[[i]])[1:4],
+        paste(vars[i], 
+              c("mean", "min", "max", "sd"), sep="_")
+      ))
+  }
+  
+  dat %>% reduce(full_join, 
+                 by = join_by(longitude, latitude, 
+                              year, month))
+}
