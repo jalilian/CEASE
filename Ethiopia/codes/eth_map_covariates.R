@@ -11,7 +11,8 @@ eth_map <-
 # merge Woreds in each zone
 eth_map <- eth_map %>%
   group_by(ADM2_EN) %>%
-  summarise(geometry=st_union(geometry)) %>%
+  summarise(geometry=st_union(geometry),
+            Total=sum(Total)) %>%
   ungroup()
 
 # =========================================================
@@ -131,7 +132,11 @@ land_data_fun <- function(year,
                           temp_dir="/tmp/eth_land/")
 {
   # create a temporary directory to extract the downloaded file
-  dir.create(temp_dir)
+  if (!dir.exists(temp_dir))
+  {
+    dir.create(temp_dir)
+  }
+  # set the working directory to the temporary directory
   setwd(temp_dir)
   
   # request for getting land data
@@ -190,6 +195,20 @@ land_data_fun <- function(year,
   # list of names of data variables
   vars <- nc.get.variable.list(nc_data)
   
+  grid <- 
+    expand_grid(lon_idx=1:length(lon),
+                lat_idx=1:length(lat)) %>%
+    rowwise() %>% 
+    mutate(points=list(st_point(c(lon[lon_idx], 
+                                  lat[lat_idx])))) %>%
+    st_as_sf()
+  
+  st_crs(grid) <- st_crs(eth_map)
+  
+  grid <- 
+    st_join(grid, eth_map, join=st_within) %>%
+    filter(!is.na(ADM2_EN))
+
   # convert nc data to an R data.frame
   dat <- vector("list", length=length(vars))
   for (i in 1:length(vars))
@@ -206,21 +225,31 @@ land_data_fun <- function(year,
     }
     
     dimnames(vals) <- 
-      list(longitude=1:length(lon), 
-           latitude=1:length(lat),
-           time=1:length(dt))
+      list(lon_idx=1:length(lon), 
+           lat_idx=1:length(lat),
+           time_idx=1:length(dt))
     
-    dat[[i]] <- as.data.frame.table(vals)
+    dat[[i]] <- as.data.frame.table(vals) %>%
+      mutate(lon_idx=as.integer(lon_idx),
+             lat_idx=as.integer(lat_idx),
+             time_idx=as.integer(time_idx))
+    
+    # determine grid points inside map regions
     dat[[i]] <- dat[[i]] %>%
-      mutate(longitude=lon[longitude],
-             latitude=lat[latitude],
-             time=dt[time]) 
+      left_join(grid, by=join_by(lon_idx, lat_idx)) %>%
+      filter(!is.na(ADM2_EN))
+    # retrieve data from lon, lat, and time index
+    dat[[i]] <- dat[[i]] %>%
+      mutate(longitude=lon[lon_idx],
+             latitude=lat[lat_idx],
+             time=dt[time_idx]) 
     
+    # aggregate by map regions and 
     # aggregate by the US CDC version of epidemiological year and week
     dat[[i]] <- dat[[i]] %>%
       mutate(epi_year=epiyear(time), 
              epi_week=epiweek(time)) %>%
-      group_by(longitude, latitude, 
+      group_by(ADM2_EN, 
                epi_year, epi_week) %>%
       summarise(mean=mean(Freq),
                 min=min(Freq),
@@ -230,7 +259,7 @@ land_data_fun <- function(year,
     # rename columns
     dat[[i]] <- dat[[i]] %>% 
       setNames(c(
-        colnames(dat[[i]])[1:4],
+        colnames(dat[[i]])[1:3],
         paste(vars[i], 
               c("mean", "min", "max", "sd"), sep="_")
       ))
@@ -241,8 +270,9 @@ land_data_fun <- function(year,
   
   dat <- dat %>% 
     reduce(full_join, 
-           by = join_by(longitude, latitude, 
+           by = join_by(ADM2_EN, 
                         epi_year, epi_week))
+  return(dat)
 }
 
 land_covars <- 
