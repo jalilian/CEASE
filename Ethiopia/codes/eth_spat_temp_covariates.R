@@ -1,7 +1,9 @@
 
-library("sf")
 library("tidyverse")
-library("terra")
+library("sf")
+library("ecmwfr")
+library("ncdf4")
+library("ncdf4.helpers")
 
 # =========================================================
 # read map data
@@ -16,112 +18,14 @@ eth_map <- eth_map %>%
   ungroup()
 
 # =========================================================
-# spatial covariates
-# =========================================================
-# function to read and extract raster data
-extract_raster_covars <- function(downloaded_file,
-                                  data_file,
-                                  map,
-                                  stat="mean",
-                                  temp_dir="/tmp/eth_raster/")
-{
-  # create a temporary directory to extract the downloaded file
-  if (!dir.exists(temp_dir))
-  {
-    dir.create(temp_dir)
-  }
-  # extract the downloaded file
-  unzip(zipfile=downloaded_file, exdir=temp_dir)
-  
-  # read the raster data using the 'terra' package
-  raster <- rast(paste0(temp_dir, data_file))
-  
-  out <- vector("list", length=nrow(map))
-  for (i in 1:nrow(map))
-  {
-    cp <- terra::crop(raster, map[i, ], mask=TRUE, touches=TRUE)
-    cp <- values(cp)
-    cp <- cp[!is.na(cp)]
-    
-    out[[i]] <- switch(stat, mean={
-      c(mean=mean(cp), sd=sd(cp))
-    }, mode={
-      cp <- sort(table(cp), decreasing=TRUE)
-      cp <- round(100 * cp[1] / sum(cp), 2)
-      c(mode=names(cp), percent=unname(cp))
-    })
-  }
-  
-  # clean up the temporary directory
-  unlink(temp_dir, recursive=TRUE)
-  
-  return(bind_rows(out))
-}
-
-# read the Gridded Population of the World (GPW), v4
-# resolution: 30 arc second
-# provided by Socioeconomic Data and Applications Center, NASA
-# https://sedac.ciesin.columbia.edu/data/collection/gpw-v4
-pop_density <- 
-  extract_raster_covars(
-    paste0("~/Downloads/Africa_covars/",
-           "gpw-v4-population-density-rev11_2020_30_sec_tif.zip"),
-    "gpw_v4_population_density_rev11_2020_30_sec.tif",
-    map=eth_map, stat="mean"
-  )
-
-# read S2 Prototype Land Cover 20m Map of Africa 2016
-# resolution: 20 meter
-# provided by CCI Land Cover (LC) team, European Space Agency
-# https://2016africalandcover20m.esrin.esa.int/
-land_cover <- 
-  extract_raster_covars(
-    paste0("~/Downloads/Africa_covars/",
-    "ESACCI-LC-L4-LC10-Map-20m-P1Y-2016-v1.0.zip"),
-    "ESACCI-LC-L4-LC10-Map-20m-P1Y-2016-v1.0.tif",
-    map=eth_map, stat="mode"
-  )
-
-# Void-filled digital elevation mode of Africa, 2007 [ArcGRID]
-# resolution: 15s resolution
-# provided by World Wildlife Fund. Africa, U.S. Geological Survey
-# https://maps.princeton.edu/catalog/stanford-jm998sr5227 
-elevation <- 
-  extract_raster_covars(
-    paste0("~/Downloads/Africa_covars/",
-    "data.zip"),
-    "af_dem_15s/",
-    map=eth_map, stat="mean"
-  )
-
-# combine raster covariates
-spat_covars <-
-  bind_cols(
-    ADM2_EN=eth_map %>% pull(ADM2_EN), 
-    pop_density %>% 
-      setNames(paste0('pop_density_', names(.))),
-    land_cover %>% 
-      setNames(paste0('land_cover_', names(.))),
-    elevation %>% 
-      setNames(paste0('elevation_', names(.)))
-  )
-
-# save the extracted spatial covariates
-saveRDS(spat_covars, file="spat_covars.rds")
-
-# =========================================================
 # spatiotemporal covariates
 # =========================================================
-library("ecmwfr")
-library("ncdf4")
-library("ncdf4.helpers")
-
 # European Centre for Medium-Range Weather Forecasts (ECMWF) 
 # Copernicus's Climate Data Store (CDS)
 # https://cds.climate.copernicus.eu
 # DOI: 10.24381/cds.e2161bac
 
-# user credentials
+# user credentials for ECMWF data access
 user <- "****************"
 cds.key <- "********************************"
 
@@ -195,6 +99,7 @@ land_data_fun <- function(year,
   # list of names of data variables
   vars <- nc.get.variable.list(nc_data)
   
+  # create a spatial grid using longitude and latitude
   grid <- 
     expand_grid(lon_idx=1:length(lon),
                 lat_idx=1:length(lat)) %>%
@@ -203,8 +108,10 @@ land_data_fun <- function(year,
                                   lat[lat_idx])))) %>%
     st_as_sf()
   
+  # set the coordinate reference system for the grid
   st_crs(grid) <- st_crs(eth_map)
   
+  # conduct a spatial join to determine points inside specific map regions
   grid <- 
     st_join(grid, eth_map, join=st_within) %>%
     filter(!is.na(ADM2_EN))
@@ -224,16 +131,19 @@ land_data_fun <- function(year,
       vals <- vals[, , idx_3, ]
     }
     
+    # define dimension names and indices
     dimnames(vals) <- 
       list(lon_idx=1:length(lon), 
            lat_idx=1:length(lat),
            time_idx=1:length(dt))
     
+    # convert data array to a data frame
     dat[[i]] <- as.data.frame.table(vals) %>%
       mutate(lon_idx=as.integer(lon_idx),
              lat_idx=as.integer(lat_idx),
              time_idx=as.integer(time_idx))
     
+    # aggregate by map regions
     # determine grid points inside map regions
     dat[[i]] <- dat[[i]] %>%
       left_join(grid, by=join_by(lon_idx, lat_idx)) %>%
@@ -244,7 +154,6 @@ land_data_fun <- function(year,
              latitude=lat[lat_idx],
              time=dt[time_idx]) 
     
-    # aggregate by map regions and 
     # aggregate by the US CDC version of epidemiological year and week
     dat[[i]] <- dat[[i]] %>%
       mutate(epi_year=epiyear(time), 
@@ -256,7 +165,7 @@ land_data_fun <- function(year,
                 max=max(Freq),
                 sd=sd(Freq)) %>%
       ungroup()
-    # rename columns
+    # rename variables for clarity
     dat[[i]] <- dat[[i]] %>% 
       setNames(c(
         colnames(dat[[i]])[1:3],
@@ -268,6 +177,7 @@ land_data_fun <- function(year,
   # close the open netCDF file
   nc_close(nc_data)
   
+  # combine data frames for different variables using a full join
   dat <- dat %>% 
     reduce(full_join, 
            by = join_by(ADM2_EN, 
@@ -275,11 +185,16 @@ land_data_fun <- function(year,
   return(dat)
 }
 
+# retrieve land covariate data for the years 2013 to 2022
 land_covars <- 
   lapply(2013:2022, land_data_fun)
 
 # garbage collection to reduce memory usage
 gc(verbose=TRUE, full=TRUE)
 
+# combine data frames for different years
 land_covars <- land_covars %>% 
   reduce(full_join)
+
+# save the extracted land covariates
+saveRDS(land_covars, file="spat_temp_covars.rds")
