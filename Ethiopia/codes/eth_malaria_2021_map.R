@@ -8,10 +8,10 @@ library("readxl")
 # weekly malaria surveillance data from 2013 to 2022
 # restricted access data
 
-# path to the malaria data file
+# set the path to the malaria data file
 data_path <- "~/Downloads/Ethiopia/"
 
-# reading the excel file containing the data
+# read the excel file containing the data
 eth_data <- 
   read_excel(paste0(data_path,
                     "EPHI_Malaria Surveillance Data from 2013-2022.xlsx"), 
