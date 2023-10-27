@@ -292,16 +292,22 @@ lapply(discrap, function(o){
   cbind(a[idx], b[idx])
   })
 
-unique(eth_map %>% pull(ADM2_EN))[ !
-  unique(eth_map %>% pull(ADM2_EN)) %in% unique(eth_data %>% pull(ZoneName2))
-]
-# =========================================================
+# which zones on the map are not covered in the data
+unique(eth_map %>% 
+         pull(ADM2_EN))[ !
+                           unique(eth_map %>% pull(ADM2_EN)) %in% unique(eth_data %>% pull(ZoneName2))
+         ]
 
+# save the data as an R data.frame
+saveRDS(eth_data, file=paste0(data_path, "eth_data.rds"))
+
+# =========================================================
+# exploring missing data
+
+# number of weeks with recorded malaria by zones
 eth_data %>% 
   count(Year, Epidemic_Week, RegionName2, ZoneName2) %>%
   count(RegionName2, ZoneName2) %>% arrange(n) %>% print(n=100)
-
-saveRDS(eth_data, file=paste0(data_path, "eth_data.rds"))
 
 # by region
 expand_grid(RegionName2=unique(eth_data %>% pull(RegionName2)),
