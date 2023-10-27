@@ -298,9 +298,6 @@ unique(eth_map %>%
                            unique(eth_map %>% pull(ADM2_EN)) %in% unique(eth_data %>% pull(ZoneName2))
          ]
 
-# save the data as an R data.frame
-saveRDS(eth_data, file=paste0(data_path, "eth_data.rds"))
-
 # =========================================================
 # exploring missing data
 
@@ -331,3 +328,31 @@ expand_grid(RegionName2=unique(eth_data %>% pull(RegionName2)),
   filter(is.na(n)) %>%
   select(-n) %>% 
   write_csv(file="~/Desktop/missing_records_zone.csv")
+
+# =========================================================
+# aggregate by zones
+eth_data <- eth_data %>% 
+  mutate(date2=as.Date(date2)) %>%
+  group_by(RegionName2, ZoneName2, date2, Year, Epidemic_Week) %>%
+  summarise(
+    `Total Malaria Confirmed and Clinical`=
+      sum(`Total Malaria Confirmed and Clinical`),
+    `TMalaria_OutP_Cases`=
+      sum(`TMalaria_OutP_Cases`),
+    `TMalaria_InP_Cases`=
+      sum(`TMalaria_InP_Cases`),
+    `TMalaria_InP_Deaths`=
+      sum(`TMalaria_InP_Deaths`),
+    `TMSuspected Fever Examined`=
+      sum(`TMSuspected Fever Examined`),
+    `PosMalaria_RDT_or_Microscopy_PF_OutP_Cases`=
+      sum(`PosMalaria_RDT_or_Microscopy_PF_OutP_Cases`),
+    `PosMalaria_RDT_or_Microscopy_PV_OutP_Cases`=
+      sum(`PosMalaria_RDT_or_Microscopy_PV_OutP_Cases`)
+  ) %>%
+  rename(RegionName=RegionName2,
+         ZoneName=ZoneName2,
+         Date=date2)
+
+# save the data as an R data.frame
+saveRDS(eth_data, file=paste0(data_path, "eth_data.rds"))
