@@ -352,7 +352,8 @@ eth_data <- eth_data %>%
   ) %>%
   rename(RegionName=RegionName2,
          ZoneName=ZoneName2,
-         Date=date2)
+         Date=date2) %>%
+  ungroup()
 
 # save the data as an R data.frame
 saveRDS(eth_data, file=paste0(data_path, "eth_data.rds"))

@@ -8,3 +8,4 @@ library("tidyverse")
 eth_data <- 
   readRDS("~/Downloads/Ethiopia/eth_data.rds")
 
+eth_data %>% count(Date)
