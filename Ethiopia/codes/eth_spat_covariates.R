@@ -108,3 +108,52 @@ spat_covars <-
 
 # save the extracted spatial covariates
 saveRDS(spat_covars, file="spat_covars.rds")
+
+# Continent of Africa: High Resolution Population Density Maps
+# provided by Data for Good at Meta
+# https://data.humdata.org/dataset/highresolutionpopulationdensitymaps
+
+
+pop_dens_meta <- function(downloaded_file="popdens.zip",
+                          temp_dir="/tmp/pop_dens_africa/")
+{
+  # create a temporary directory to extract the downloaded file
+  if (!dir.exists(temp_dir))
+  {
+    dir.create(temp_dir)
+  }
+  download.file(
+  "https://data.humdata.org/dataset/dbd7b22d-7426-4eb0-b3c4-faa29a87f44b/resource/7b3ef0ae-a37d-4a42-a2c9-6b111e592c2c/download/population_af_2018-10-01.zip", 
+  destfile=paste0(temp_dir, downloaded_file)
+  )
+  # extract the downloaded file
+  unzip(zipfile=paste0(temp_dir, downloaded_file), exdir=temp_dir)
+  
+  # read all raster files
+  raster <- sapply(list.files(temp_dir, 
+                              pattern=".tif$", 
+                              full.names=TRUE), 
+                   rast)
+
+  raster <- sprc(raster)
+  raster <- terra::crop(raster, ext(map))
+  raster <- terra::mosaic(raster)
+  
+  out <- vector("list", length=nrow(map))
+  for (i in 1:nrow(map))
+  {
+    cp <- terra::crop(raster, map[i, ], mask=TRUE, touches=TRUE)
+    cp <- values(cp)
+    cp <- cp[!is.na(cp)]
+    
+    out[[i]] <- switch(stat, mean={
+      c(mean=mean(cp), sd=sd(cp))
+    }, mode={
+      cp <- sort(table(cp), decreasing=TRUE)
+      cp <- round(100 * cp[1] / sum(cp), 2)
+      c(mode=names(cp), percent=unname(cp))
+    })
+  }
+  
+  return(bind_rows(out))
+}
