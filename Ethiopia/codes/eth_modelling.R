@@ -48,10 +48,16 @@ eth_data <- eth_data %>%
   left_join(tibble(Date=seq(as.Date("2013-01-07"), 
                             as.Date("2022-08-15"), 
                             by=7)) %>%
-              mutate(idx_time=1:length(Date),
-                     idx_time2=idx_time),
+              mutate(idx_week=1:length(Date),
+                     idx_week2=idx_week,
+                     idx_month=substr(Date, 1, 7),
+                     idx_month=match(idx_month, 
+                                     unique(idx_month)),
+                     idx_year=substr(Date, 1, 4),
+                     idx_year=match(idx_year, 
+                                    unique(idx_year))),
             by=join_by(Date)) %>%
-  # create zone index
+  # create region and zone index
   left_join(eth_map %>% 
               mutate(idx_region=match(RegionName, unique(RegionName)),
                      idx_zone=1:length(ZoneName)) %>%
@@ -104,9 +110,12 @@ pitfun <- function(fit, J = 10)
 
 trendplot <- function(fit)
 {
-  reffect <- fit$summary.random$idx_time
+  reffect <- fit$summary.random$idx_month
   names(reffect) <- c("ID", "mean", "sd", "q0.025", "q0.5", "q0.975", "mode", "kld")
-  ggplot(data=reffect, mapping=aes(x=unique(fit$.args$data$Date), y=mean)) +
+  ggplot(data=reffect, 
+         mapping=aes(x=fit$.args$data$Date[1] %m+% 
+                       months(unique(fit$.args$data$idx_month) - 1),
+                     y=mean)) +
     geom_line() + 
     geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25, col='blue') +
     xlab('date') + ylab('RW2 temporal random effect') +
@@ -163,11 +172,11 @@ fit <-
          pop_density_mean + pop_density_sd + 
          land_cover_mode + land_cover_percent +
          elevation_mean + elevation_sd +
-         f(idx_time, model="rw2") +
+         f(idx_month, model="rw2") +
          f(Epidemic_Week, model="rw2", #group=idx_zone, 
            cyclic=TRUE) +
-         f(idx_time2, model="ar1") + 
-         f(idx_region, model="iid") + 
+         f(idx_week, model="ar", order=2) + 
+         #f(idx_region, model="iid") + 
          f(idx_zone, model='bym2', graph=H, 
            scale.model=TRUE, constr=TRUE, 
            adjust.for.con.comp=TRUE),
