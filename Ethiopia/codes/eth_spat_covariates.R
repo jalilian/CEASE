@@ -39,17 +39,19 @@ extract_raster_covars <- function(downloaded_file,
   out <- vector("list", length=nrow(map))
   for (i in 1:nrow(map))
   {
+    cat(i, ": ")
     cp <- terra::crop(raster, map[i, ], mask=TRUE, touches=TRUE)
     cp <- values(cp)
     cp <- cp[!is.na(cp)]
     
     out[[i]] <- switch(stat, mean={
-      c(mean=mean(cp), sd=sd(cp))
+      c(mean=mean(cp), min=min(cp), max=max(cp), sd=sd(cp))
     }, mode={
       cp <- sort(table(cp), decreasing=TRUE)
       cp <- round(100 * cp[1] / sum(cp), 2)
       c(mode=names(cp), percent=unname(cp))
     })
+    cat(" done\n")
   }
   
   # clean up the temporary directory
