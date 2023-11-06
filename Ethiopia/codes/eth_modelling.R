@@ -7,26 +7,6 @@ library("tidyverse")
 # read the EPHI weekly malaria surveillance data
 eth_data <- readRDS("~/Downloads/Ethiopia/eth_data.rds")
 
-# read spatial covariates 
-spat_covars <- 
-  readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/spat_covars.rds"))
-
-spat_covars <- spat_covars %>%
-  mutate(land_cover_percent=as.numeric(land_cover_percent))
-
-# read spatiotemporal covariates
-spat_temp_covars <- 
-  readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/spat_temp_covars.rds"))
-
-# merge all covariates
-spat_temp_covars <- spat_temp_covars %>% 
-  left_join(spat_covars, by=join_by(ADM2_EN)) %>%
-  rename(ZoneName=ADM2_EN,
-         Year=epi_year, 
-         Epidemic_Week=epi_week) #%>%
-#  mutate(across(c(u10_mean:pop_density_sd, land_cover_percent:elevation_sd), 
-#                \(x) scale(x, center=FALSE, scale=TRUE)))
-
 # data administrative boundary data from a shapefile provided by OCHA
 eth_map <- 
   readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2021_OCHA.rds"))
@@ -38,6 +18,39 @@ eth_map <- eth_map %>%
             Total_pop=sum(Total)) %>%
   ungroup() %>%
   rename(RegionName=ADM1_EN, ZoneName=ADM2_EN)
+
+# read spatial covariates 
+spat_covars <- 
+  readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/spat_covars.rds"))
+
+spat_covars <- spat_covars %>%
+  mutate(land_cover_percent=as.numeric(land_cover_percent))
+
+# read spatiotemporal covariates
+spat_temp_covars <- 
+  readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/spat_temp_covars.rds"))
+
+# fix Dire Dawa urban lack of covariates
+spat_temp_covars <- 
+  bind_rows(spat_temp_covars,
+            spat_temp_covars %>%
+              filter(ADM2_EN == "Dire Dawa rural") %>%
+              mutate(ADM2_EN=case_match(ADM2_EN, 
+                                        "Dire Dawa rural" ~ "Dire Dawa urban")))
+
+# merge all covariates
+spat_temp_covars <- spat_temp_covars %>% 
+  left_join(spat_covars, by=join_by(ADM2_EN)) %>%
+  rename(ZoneName=ADM2_EN,
+         Year=epi_year, 
+         Epidemic_Week=epi_week) #%>%
+#  mutate(across(c(u10_mean:pop_density_sd, land_cover_percent:elevation_sd), 
+#                \(x) scale(x, center=FALSE, scale=TRUE)))
+
+# check for NA in covariates
+spat_temp_covars %>%
+  summarise_all(~ sum(is.na(.))) %>% 
+  t()
 
 # =========================================================
 
