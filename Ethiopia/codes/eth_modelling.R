@@ -197,9 +197,9 @@ fit <-
          #sp_mean + sp_min + sp_max + sp_sd,# +
          tp_mean + tp_min + tp_max + tp_sd + 
          swvl1_mean + swvl1_min + swvl1_max + swvl1_sd +
-         pop_density_mean + pop_density_sd + 
+         pop_density_mean + pop_density_min + pop_density_max + pop_density_sd + 
          land_cover_mode + land_cover_percent +
-         elevation_mean + elevation_sd +
+         elevation_mean + elevation_min + elevation_max + elevation_sd +
          f(idx_month, model="rw2") +
          f(Epidemic_Week, model="rw2", #group=idx_zone, 
            cyclic=TRUE) +

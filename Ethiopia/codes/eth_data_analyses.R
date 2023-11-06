@@ -83,17 +83,32 @@ for (year in c(2013:2019, 2022))
 # confirmed cases 
 
 # temporal pattern
-data.frame(Date=seq(as.Date("2013-01-07"), 
-                    as.Date("2022-08-15"), 
-                    by=7)) %>%
+tmp1 <- data.frame(Date=seq(as.Date("2013-01-07"), 
+                            as.Date("2022-08-15"), 
+                            by=7)) %>%
   left_join(eth_data %>% 
               group_by(Date) %>% 
               summarise(Total_confirmed=sum(`Total Malaria Confirmed and Clinical`)),
-            by = join_by(Date)) %>%
+            by = join_by(Date))
+tmp1 %>%
   ggplot(aes(x=Date, y=Total_confirmed)) +
   geom_line() +
   labs(y="Total number of clinically confirmed malaria cases") +
   theme_light()
+
+# check ACF and PACF 
+library("forecast")
+ggAcf(tmp1$Total_confirmed)
+ggPacf(tmp1$Total_confirmed)
+ggAcf(diff(tmp1$Total_confirmed))
+ggPacf(diff(tmp1$Total_confirmed))
+ggAcf(diff(tmp1$Total_confirmed, 2))
+ggPacf(diff(tmp1$Total_confirmed, 2))
+
+library("tseries")
+adf.test(na.omit(tmp1$Total_confirmed[tmp1$Date < ymd("2019-12-31")]))
+adf.test(na.omit(diff(tmp1$Total_confirmed[tmp1$Date < ymd("2019-12-31")])))
+adf.test(na.omit(diff(tmp1$Total_confirmed[tmp1$Date < ymd("2019-12-31")], 2)))
 
 # spatial pattern
 eth_map %>%
