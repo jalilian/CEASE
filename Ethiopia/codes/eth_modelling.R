@@ -23,7 +23,9 @@ spat_temp_covars <- spat_temp_covars %>%
   left_join(spat_covars, by=join_by(ADM2_EN)) %>%
   rename(ZoneName=ADM2_EN,
          Year=epi_year, 
-         Epidemic_Week=epi_week)
+         Epidemic_Week=epi_week) #%>%
+#  mutate(across(c(u10_mean:pop_density_sd, land_cover_percent:elevation_sd), 
+#                \(x) scale(x, center=FALSE, scale=TRUE)))
 
 # data administrative boundary data from a shapefile provided by OCHA
 eth_map <- 
@@ -116,9 +118,11 @@ trendplot <- function(fit)
          mapping=aes(x=fit$.args$data$Date[1] %m+% 
                        months(unique(fit$.args$data$idx_month) - 1),
                      y=mean)) +
+    geom_hline(yintercept=0, linetype="dashed", 
+               color = "red") +
     geom_line() + 
     geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25, col='blue') +
-    xlab('date') + ylab('RW2 temporal random effect') +
+    xlab('date') + ylab('Overall long-term trend') +
     #labs(title = NULL, subtitle = NULL, caption = NULL) + 
     scale_x_date(date_breaks = "12 month" , date_labels = "%b-%Y") + 
     theme(axis.text.x = element_text(angle = 0, hjust = 1)) +
@@ -131,9 +135,11 @@ seasplot <- function(fit)
   names(reffect) <- c("ID", "mean", "sd", "q0.025", "q0.5", "q0.975", "mode", "kld")
   ggplot(data=reffect, 
          mapping=aes(x=unique(fit$.args$data$Epidemic_Week), y=mean)) +
+    geom_hline(yintercept=0, linetype="dashed", 
+               color = "red") +
     geom_line() + 
     geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25, col='blue') +
-    xlab('date') + ylab('RW2 temporal random effect') +
+    xlab('Epidemic week') + ylab('Recurring seasonal patterns') +
     theme_light()
 }
 
@@ -145,10 +151,19 @@ spatialplot <- function(fit, cmap=eth_map)
               rename(idx_zone=ID),
               by=join_by(idx_zone))
   
-  ff <- cmap %>% left_join(dat, by=join_by(ZoneName))
+  ff <- cmap %>% 
+    left_join(dat, by=join_by(ZoneName)) %>%
+    mutate(label=case_when(
+      `0.025quant` > 0 ~ "+",
+      `0.975quant` < 0 ~ "-",
+      .default = NA
+    ))
+  
   ggplot(data=ff, aes(fill=mean)) +
-    geom_sf()+
+    geom_sf() +
     scale_fill_distiller(palette = "Reds", direction=1) +
+    geom_sf_text(aes(label = label)) + 
+    labs(x="longitude", y="latitude")
     theme_light()
 }
 
@@ -175,7 +190,7 @@ fit <-
          f(idx_month, model="rw2") +
          f(Epidemic_Week, model="rw2", #group=idx_zone, 
            cyclic=TRUE) +
-         f(idx_week, model="ar", order=2) + 
+         f(idx_week, model="ar", order=3) + 
          #f(idx_region, model="iid") + 
          f(idx_zone, model='bym2', graph=H, 
            scale.model=TRUE, constr=TRUE, 
@@ -196,4 +211,12 @@ seasplot(fit)
 spatialplot(fit)
 
 fit$summary.fixed %>%
-  filter(`0.025quant` * `0.975quant` > 0)
+  rownames_to_column(var="term") %>%
+  filter(term != "(Intercept)") %>%
+  filter(`0.025quant` * `0.975quant` > 0) %>% 
+  select(term, mean, `0.025quant`, `0.975quant`) %>%
+  ggplot(aes(x=mean, y=term)) +
+  geom_vline(xintercept=0, linetype="dashed", 
+             color = "red") +
+  geom_point() + 
+  geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`))

@@ -299,6 +299,22 @@ unique(eth_map %>%
          ]
 
 # =========================================================
+# check for negative number of cases
+eth_data %>%
+  summarise(across(where(is.numeric), 
+                   function(x) sum(x < 0, na.rm=TRUE) )) %>%
+  t()
+
+eth_data %>%
+  filter(`TMSuspected Fever Examined` < 0) %>%
+  select(RegionName2, ZoneName2, Year, Epidemic_Week, 
+         `TMSuspected Fever Examined`)
+# possibility of mistaken sign in data entry
+# transfer negatives to positive
+eth_data <- eth_data %>%
+  mutate(`TMSuspected Fever Examined` = abs(`TMSuspected Fever Examined`))
+
+# =========================================================
 # exploring missing data
 
 # number of weeks with recorded malaria by zones
