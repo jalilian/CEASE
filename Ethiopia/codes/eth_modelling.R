@@ -161,13 +161,37 @@ seasplot <- function(fit)
 
 spatialplot <- function(fit, what="random_effect", cmap=eth_map)
 {
-  dat <- switch (what, random_effect={
-    fit$.args$data %>% count(ZoneName, idx_zone) %>%
+  switch (what, random_effect={
+    dat <- fit$.args$data %>% count(ZoneName, idx_zone) %>%
       left_join(fit$summary.random$idx_zone %>%
                   rename(idx_zone=ID),
                 by=join_by(idx_zone))
+    
+    midpoint <- 0
+  }, random_effect_exp={
+    out <- parallel::mclapply(
+      fit$marginals.random$idx_zone, 
+      function(o){ 
+        fun <- function(v)
+        {
+          exp(v) / (1 + exp(v))
+        }
+        inla.zmarginal(inla.tmarginal(fun, o),
+                       silent=TRUE) 
+      }, mc.cores=4)
+    
+    out <- bind_rows(out) %>%
+      bind_cols(idx_zone=fit$summary.random$idx_zone$ID) %>%
+      rename("0.025quant"="quant0.025",
+             "0.975quant"="quant0.975")
+    
+    dat <- fit$.args$data %>% count(ZoneName, idx_zone) %>%
+      left_join(out,
+                by=join_by(idx_zone))
+    
+    midpoint <- mean(dat$mean)
   }, linear_predictor={
-    bind_cols(fit$.args$data, 
+    dat <- bind_cols(fit$.args$data, 
               fit$summary.linear.predictor) %>%
       group_by(RegionName, ZoneName, 
                idx_region, idx_zone) %>%
@@ -175,24 +199,34 @@ spatialplot <- function(fit, what="random_effect", cmap=eth_map)
                 `0.025quant`=median(`0.025quant`),
                 `0.975quant`=median(`0.975quant`)) %>%
       ungroup()
+    
+    midpoint <- 0
   }, linear_predictor_exp={
     out <- parallel::mclapply(
       fit$marginals.linear.predictor, 
       function(o){ 
-        inla.zmarginal(inla.tmarginal(exp, o),
+        fun <- function(v)
+        {
+          exp(v) / (1 + exp(v))
+        }
+        inla.zmarginal(inla.tmarginal(fun, o),
                        silent=TRUE) 
       }, mc.cores=4)
     
-    data.frame(out)
+    out <- bind_rows(out) %>%
+      rename("0.025quant"="quant0.025",
+             "0.975quant"="quant0.975")
     
-    bind_cols(fit$.args$data, 
-              fit$summary.linear.predictor) %>%
+    dat <- bind_cols(fit$.args$data, 
+              out) %>%
       group_by(RegionName, ZoneName, 
                idx_region, idx_zone) %>%
       summarise(mean=median(mean),
                 `0.025quant`=median(`0.025quant`),
                 `0.975quant`=median(`0.975quant`)) %>%
       ungroup()
+    
+    midpoint <- mean(dat$mean)
     })
   
   ff <- cmap %>% 
@@ -215,7 +249,7 @@ spatialplot <- function(fit, what="random_effect", cmap=eth_map)
     scale_fill_gradient2(low='green', 
                          mid='white', 
                          high='red', 
-                         midpoint = 0,
+                         midpoint = midpoint,
                          na.value = "grey50",
                          guide = "colourbar",
                          aesthetics = "fill") +
@@ -287,7 +321,9 @@ fit$summary.hyperpar
 trendplot(fit)
 seasplot(fit)
 spatialplot(fit, what="random_effect")
+spatialplot(fit, what="random_effect_exp")
 spatialplot(fit, what="linear_predictor")
+spatialplot(fit, what="linear_predictor_exp")
 
 fit$summary.fixed %>%
   rownames_to_column(var="term") %>%
