@@ -1,7 +1,7 @@
 
 library("sf")
 library("tidyverse")
-
+library("ggpubr")
 # =========================================================
 
 # read the EPHI weekly malaria surveillance data
@@ -145,7 +145,9 @@ trendplot <- function(fit)
 seasplot <- function(fit)
 {
   reffect <- fit$summary.random$Epidemic_Week
-  names(reffect) <- c("ID", "mean", "sd", "q0.025", "q0.5", "q0.975", "mode", "kld")
+  names(reffect) <- c("ID", "mean", "sd", 
+                      "q0.025", "q0.5", "q0.975", 
+                      "mode", "kld")
   ggplot(data=reffect, 
          mapping=aes(x=unique(fit$.args$data$Epidemic_Week), y=mean)) +
     geom_hline(yintercept=0, linetype="dashed", 
@@ -157,12 +159,41 @@ seasplot <- function(fit)
 }
 
 
-spatialplot <- function(fit, cmap=eth_map)
+spatialplot <- function(fit, what="random_effect", cmap=eth_map)
 {
-  dat <- fit$.args$data %>% count(ZoneName, idx_zone) %>%
-    left_join(fit$summary.random$idx_zone %>%
-              rename(idx_zone=ID),
-              by=join_by(idx_zone))
+  dat <- switch (what, random_effect={
+    fit$.args$data %>% count(ZoneName, idx_zone) %>%
+      left_join(fit$summary.random$idx_zone %>%
+                  rename(idx_zone=ID),
+                by=join_by(idx_zone))
+  }, linear_predictor={
+    bind_cols(fit$.args$data, 
+              fit$summary.linear.predictor) %>%
+      group_by(RegionName, ZoneName, 
+               idx_region, idx_zone) %>%
+      summarise(mean=median(mean),
+                `0.025quant`=median(`0.025quant`),
+                `0.975quant`=median(`0.975quant`)) %>%
+      ungroup()
+  }, linear_predictor_exp={
+    out <- parallel::mclapply(
+      fit$marginals.linear.predictor, 
+      function(o){ 
+        inla.zmarginal(inla.tmarginal(exp, o),
+                       silent=TRUE) 
+      }, mc.cores=4)
+    
+    data.frame(out)
+    
+    bind_cols(fit$.args$data, 
+              fit$summary.linear.predictor) %>%
+      group_by(RegionName, ZoneName, 
+               idx_region, idx_zone) %>%
+      summarise(mean=median(mean),
+                `0.025quant`=median(`0.025quant`),
+                `0.975quant`=median(`0.975quant`)) %>%
+      ungroup()
+    })
   
   ff <- cmap %>% 
     left_join(dat, by=join_by(ZoneName)) %>%
@@ -172,12 +203,33 @@ spatialplot <- function(fit, cmap=eth_map)
       .default = NA
     ))
   
-  ggplot(data=ff, aes(fill=mean)) +
-    geom_sf() +
-    scale_fill_distiller(palette = "Reds", direction=1) +
-    geom_sf_text(aes(label = label)) + 
-    labs(x="longitude", y="latitude")
+  g0 <- ggplot() +
+    geom_sf(data=ff) +
+    geom_sf(data=ff %>% filter(`0.025quant` > 0),
+            mapping=aes(fill=mean)) + 
+    geom_sf(data=ff %>% filter(`0.975quant` < 0),
+            mapping=aes(fill=mean)) +
+    geom_sf(data=ff %>% filter(`0.975quant` > 0 &
+                                 `0.025quant` < 0),
+            mapping=aes(fill=0)) +
+    scale_fill_gradient2(low='green', 
+                         mid='white', 
+                         high='red', 
+                         midpoint = 0,
+                         na.value = "grey50",
+                         guide = "colourbar",
+                         aesthetics = "fill") +
     theme_light()
+  
+  g1 <- ggplot() +
+    geom_sf(data=ff, mapping=aes(fill=`0.025quant`)) +
+    scale_fill_distiller(palette = "Greens", direction=1) +
+    theme_light()
+  g2 <- ggplot() +
+    geom_sf(data=ff, mapping=aes(fill=`0.975quant`)) +
+    scale_fill_distiller(palette = "Reds", direction=1) +
+    theme_light()
+  ggarrange(g1, g0, g2, nrow=1)
 }
 
 library("spdep")
@@ -189,30 +241,43 @@ image(inla.graph2matrix(H), xlab="", ylab="")
 
 fit <- 
   inla(Total_confirmed ~ 
-         u10_mean + u10_min + u10_max + u10_sd +
-         v10_mean + v10_min + v10_max + v10_sd + 
-         lai_hv_mean + lai_hv_min + lai_hv_max+ lai_hv_sd + 
-         lai_lv_mean + lai_lv_min + lai_lv_max + lai_lv_sd +
-         skt_mean + skt_min + skt_max + skt_sd +
-         #sp_mean + sp_min + sp_max + sp_sd,# +
-         tp_mean + tp_min + tp_max + tp_sd + 
-         swvl1_mean + swvl1_min + swvl1_max + swvl1_sd +
-         pop_density_mean + pop_density_min + pop_density_max + pop_density_sd + 
+         u10_mean + u10_min + u10_max + 
+         u10_sd +
+         v10_mean + v10_min + v10_max + 
+         v10_sd + 
+         lai_hv_mean + lai_hv_min + lai_hv_max+ 
+         lai_hv_sd + 
+         lai_lv_mean + lai_lv_min + lai_lv_max + 
+         lai_lv_sd +
+         skt_mean + skt_min + skt_max + 
+         skt_sd +
+         #sp_mean + #sp_min + sp_max + sp_sd +
+         tp_mean + tp_min + tp_max + 
+         tp_sd + 
+         swvl1_mean + swvl1_min + swvl1_max + 
+         swvl1_sd +
+         pop_density_mean + pop_density_min + pop_density_max + 
+         pop_density_sd + 
          land_cover_mode + land_cover_percent +
-         elevation_mean + elevation_min + elevation_max + elevation_sd +
+         elevation_mean + elevation_min + elevation_max + 
+         elevation_sd +
          f(idx_month, model="rw2") +
-         f(Epidemic_Week, model="rw2", #group=idx_zone, 
+         f(Epidemic_Week, model="rw2", 
+           scale.model=TRUE, constr=TRUE,
+           #group=idx_zone, 
            cyclic=TRUE) +
-         f(idx_week, model="ar", order=3) + 
-         #f(idx_region, model="iid") + 
-         f(idx_zone, model='bym2', graph=H, 
-           scale.model=TRUE, constr=TRUE, 
-           adjust.for.con.comp=TRUE),
+         f(idx_week, model="ar", order=3, 
+          constr=TRUE) + 
+         f(idx_zone, model="iid"), 
+         #f(idx_zone, model='besag', graph=H, 
+        #   scale.model=TRUE, constr=TRUE, 
+         #  adjust.for.con.comp=TRUE),
        data=eth_data, E=E,
        family = "nbinomial",
        control.predictor=list(compute=TRUE, link=1),
-       control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE),
-       num.threads=4, verbose=TRUE, keep=TRUE)
+       control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
+                            return.marginals.predictor=TRUE),
+       num.threads=6, verbose=TRUE, keep=FALSE)
 
 printmodel(fit)
 pitfun(fit)
@@ -221,7 +286,8 @@ fit$summary.hyperpar
 
 trendplot(fit)
 seasplot(fit)
-spatialplot(fit)
+spatialplot(fit, what="random_effect")
+spatialplot(fit, what="linear_predictor")
 
 fit$summary.fixed %>%
   rownames_to_column(var="term") %>%
@@ -229,7 +295,27 @@ fit$summary.fixed %>%
   filter(`0.025quant` * `0.975quant` > 0) %>% 
   select(term, mean, `0.025quant`, `0.975quant`) %>%
   ggplot(aes(x=mean, y=term)) +
-  geom_vline(xintercept=0, linetype="dashed", 
+  geom_vline(xintercept=0, 
+             linetype="dashed", 
              color = "red") +
   geom_point() + 
   geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`))
+
+aa <- lapply(fit$marginals.fixed, function(a){ 
+  inla.zmarginal(inla.tmarginal(exp, a))
+})
+bb <- round(matrix(unlist(aa), ncol=7, byrow=TRUE)[, c(1, 3, 7)], 3)
+rownames(bb) <- names(aa)
+bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
+  filter(term != "(Intercept)") %>%
+  filter(V2 > 1 | V3 < 1) %>%
+  filter(!(term  %in% c("tp_min", "tp_sd", "tp_mean"))) %>%
+  ggplot(aes(x=V1, y=term)) +
+  geom_vline(xintercept=1, linetype="dashed", 
+             color = "red") +
+  geom_point() + 
+  geom_errorbar(aes(xmin=V2, xmax=V3)) +
+  labs(x="odds ratio") +
+  theme_light()
+
+  
