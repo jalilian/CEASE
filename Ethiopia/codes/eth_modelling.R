@@ -91,11 +91,31 @@ eth_data <- eth_data %>%
   left_join(spat_temp_covars, 
             by=join_by(ZoneName, Year, Epidemic_Week))
 
+# Repeated weeks 
+eth_data %>% 
+  count(Year, Epidemic_Week) %>% 
+  filter(n > 90)
+
+# Account for population change
+# considering 2.7 % annual population growth rate
+# according to World Banck: 
+#   population of Etiopia in 2016 is 105 million
+eth_data <- eth_data %>%
+  mutate(Total_pop2 = 
+           Total_pop * (1 + 2.7 / 100)^(Year - 2021))
+
+eth_data %>% group_by(Year, Epidemic_Week) %>%
+  summarise(sum(Total_pop2), sum(Total_confirmed)) %>%
+  print(n=700)
+
+
 # comute the expected number of cases under the null model
 # of spatiotemporal homogeneity
 eth_data <- eth_data %>%
   mutate(E=Total_pop * 
            sum(Total_confirmed, na.rm=TRUE) / sum(Total_pop))
+
+
 # =========================================================
 
 library("INLA")
@@ -312,7 +332,7 @@ fit <-
         #   scale.model=TRUE, constr=TRUE, 
          #  adjust.for.con.comp=TRUE),
        data=eth_data, E=E,
-       family = "nbinomial",
+       family = "gpoisson",
        control.predictor=list(compute=TRUE, link=1),
        control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
                             return.marginals.predictor=TRUE),
