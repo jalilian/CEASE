@@ -11,8 +11,9 @@ library("readxl")
 # set the path to the malaria data file
 data_path <- "~/Downloads/Ethiopia/"
 
+eth_data <- list()
 # read the excel file containing the data
-eth_data <- 
+eth_data[[1]] <- 
   read_excel(paste0(data_path,
                     "EPHI_Malaria Surveillance Data from 2013-2022.xlsx"), 
              sheet="Sheet1",
@@ -24,6 +25,9 @@ eth_data <-
   mutate(Month=factor(Month, levels=month.name)) %>%
   # convert year and week to date
   #!!! what does Epidemic week mean?
+  # Is Sunday as the first day of the week?
+  mutate(date0=as.Date(paste(Year, Epidemic_Week, 1, sep="-"),
+                       "%Y-%U-%u")) %>%
   # Is it week starting from 1st of January each year?
   mutate(date1=ymd(paste(Year, "01", "01", sep="-")) + 
            weeks(Epidemic_Week)) %>%
@@ -47,6 +51,37 @@ eth_data <-
 #eth_data <- eth_data %>%
 #  filter(Year <= 2019) 
 
+# new data from 2020 to 2022
+eth_data[[2]] <- 
+  read_excel(paste0(data_path,
+                    "PHEM  Malaria surveillance data from 2020 to 2022.xlsx"), 
+             sheet="Sheet1",
+             range=cell_limits(c(1, 1), 
+                               c(193603, 13)), 
+             col_names=TRUE,
+             na="") %>%
+  # transform Month to a factor
+  mutate(Month=factor(Month, levels=month.name)) %>%
+  # convert year and week to date
+  #!!! what does Epidemic week mean?
+  # Is Sunday as the first day of the week?
+  mutate(date0=as.Date(paste(Year, Epidemic_Week, 1, sep="-"),
+                       "%Y-%U-%u")) %>%
+  # Is it week starting from 1st of January each year?
+  mutate(date1=ymd(paste(Year, "01", "01", sep="-")) %m+% 
+           weeks(Epidemic_Week)) %>%
+  # Or is it simply week of the year? (more likely)
+  mutate(date2=parse_date_time(paste(Year, Epidemic_Week, 1, sep="-"),
+                               "Y-W-w"))
+
+table(eth_data[[1]]$date1 %in% eth_data[[2]]$date1)
+
+# merge all data
+eth_data <- 
+  bind_rows(eth_data[[1]] %>% 
+              filter(Year <= 2019),
+            eth_data[[2]])
+
 # =========================================================
 # read map of administrative divisions of Ethiopia in 2021
 # data from a shapefile provided by OCHA
@@ -61,8 +96,11 @@ eth_data <- eth_data %>%
   # change spelling of some regions
   mutate(RegionName=
            case_match(RegionName,
+                      "B. Gumuz" ~ "Benishangul-Gumuz", 
                       "Gambella" ~ "Gambela",
                       "SNNPR" ~ "SNNP",
+                      "SWEPRS\n" ~ "South West",
+                      "SWEPRS\r\n" ~ "South West",
                       "SWEPRS\r\r\n" ~ "South West",
                       .default=RegionName)) %>%
   # change name and spelling of some zones
@@ -82,6 +120,7 @@ eth_data <- eth_data %>%
                       "Nefas Silk Lafto" ~ "Addis Ababa",
                       "Yeka" ~ "Addis Ababa",
                       "Lemi Kura\r\r\n" ~ "Addis Ababa",
+                      "Lemi Kura\r\n" ~ "Addis Ababa",
                       "Lemi Kura" ~ "Addis Ababa",
                       # Afar region
                       "Zone 01" ~ "Awsi /Zone 1",
@@ -166,16 +205,20 @@ eth_data <- eth_data %>%
                       "Gode" ~ "Shabelle",
                       "Jijiga" ~ "Fafan",
                       "Korahe" ~ "Korahe",
+                      "Korahay" ~ "Korahe",
                       "Liben" ~ "Liban",
                       "Shinile" ~ "Siti",
                       "Warder" ~ "Doolo",
                       "Doollo" ~ "Doolo",
+                      "Dollo" ~  "Doolo",
                       "FAAFAN" ~ "Fafan",
                       "Jarar" ~ "Jarar",
                       "NOGOB" ~ "Nogob",
                       "SHABEELE" ~ "Shabelle",
                       "SITTI" ~ "Siti",
+                      "Sitti" ~ "Siti",
                       "Dhewa" ~ "Daawa",
+                      "dawa" ~ "Daawa",
                       "Erar" ~ "Erer",
                       "Nogob" ~ "Nogob",
                       # SNNP region
@@ -216,8 +259,11 @@ eth_data <- eth_data %>%
                       "Dawro  ZHD" ~ "Dawuro",
                       "Kaffa" ~ "Kefa",
                       "KONTA" ~ "Konta Special",
+                      "Konta" ~ "Konta Special",
                       "SHEKA" ~ "Sheka",
                       "West OMO ZHD" ~ "Mirab Omo",
+                      "West Omo" ~ "Mirab Omo",
+                      "west omo" ~ "Mirab Omo",
                       # Tigray region
                       "Central Tigray" ~ "Central",
                       "Eastern Tigray" ~ "Eastern",
@@ -241,9 +287,16 @@ eth_data <- eth_data %>%
     RegionName == "SNNP" & ZoneName2 == "Kefa" ~ "South West",
     RegionName == "SNNP" & ZoneName2 == "Konta Special" ~ "South West",
     RegionName == "SNNP" & ZoneName2 == "Sheka" ~ "South West",
+    RegionName == "SNNP" & ZoneName2 == "Mirab Omo" ~ "South West",
+    # fix new data region names
+    RegionName == "Somali" & ZoneName2 == "Bench Sheko" ~ "South West",
+    RegionName == "Somali" & ZoneName2 == "Dawuro" ~ "South West",
+    RegionName == "Somali" & ZoneName2 == "Kefa" ~ "South West",
+    RegionName == "Somali" & ZoneName2 == "Konta Special" ~ "South West",
+    RegionName == "Somali" & ZoneName2 == "Sheka" ~ "South West",
+    RegionName == "Somali" & ZoneName2 == "Mirab Omo" ~ "South West",
     TRUE ~ RegionName
   ))
-  # fixing establishment of South West region
 
 # old and new names of regions
 eth_data %>% count(RegionName, RegionName2)  %>% print(n=500)
