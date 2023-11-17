@@ -94,7 +94,8 @@ eth_data <- eth_data %>%
 # comute the expected number of cases under the null model
 # of spatiotemporal homogeneity
 eth_data <- eth_data %>%
-  mutate(E=Total_pop * sum(Total_confirmed) / sum(Total_pop))
+  mutate(E=Total_pop * 
+           sum(Total_confirmed, na.rm=TRUE) / sum(Total_pop))
 # =========================================================
 
 library("INLA")
