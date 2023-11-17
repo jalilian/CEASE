@@ -54,14 +54,18 @@ spat_temp_covars %>%
 
 # =========================================================
 
-# remove all records of week 53 of the year 2015
+eth_data %>% 
+  filter(is.na(Date)) %>% 
+  count(Year, Epidemic_Week)
+
+# remove all records of week 53 of years 2015 and 2020
 eth_data <- eth_data %>%
   filter(!is.na(Date))
 
 eth_data <- eth_data %>% 
   # create time index
-  left_join(tibble(Date=seq(as.Date("2013-01-07"), 
-                            as.Date("2022-08-15"), 
+  left_join(tibble(Date=seq(min(eth_data$Date), 
+                            max(eth_data$Date), 
                             by=7)) %>%
               mutate(idx_week=1:length(Date),
                      idx_week2=idx_week,
