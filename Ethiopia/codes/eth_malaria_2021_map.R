@@ -362,10 +362,17 @@ eth_data %>%
   filter(`TMSuspected Fever Examined` < 0) %>%
   select(RegionName2, ZoneName2, Year, Epidemic_Week, 
          `TMSuspected Fever Examined`)
+
 # possibility of mistaken sign in data entry
 # transfer negatives to positive
 eth_data <- eth_data %>%
-  mutate(`TMSuspected Fever Examined` = abs(`TMSuspected Fever Examined`))
+  mutate(
+    `TMalaria_OutP_Cases` = 
+      abs(`TMalaria_OutP_Cases`),
+    `TMSuspected Fever Examined` = 
+      abs(`TMSuspected Fever Examined`),
+    `PosMalaria_RDT_or_Microscopy_PV_OutP_Cases` = 
+      abs(`PosMalaria_RDT_or_Microscopy_PV_OutP_Cases`))
 
 # =========================================================
 # exploring missing data
