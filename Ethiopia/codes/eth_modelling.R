@@ -52,6 +52,12 @@ spat_temp_covars %>%
   summarise_all(~ sum(is.na(.))) %>% 
   t()
 
+spat_temp_covars <-
+  spat_temp_covars %>%
+  mutate(Date=parse_date_time(paste(Year, 
+                                    Epidemic_Week, 
+                                    1, sep="-"),
+                              "Y-W-w"))
 # =========================================================
 
 eth_data %>% 
