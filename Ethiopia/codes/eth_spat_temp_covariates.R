@@ -187,7 +187,7 @@ land_data_fun <- function(year,
 
 # retrieve land covariate data for the years 2013 to 2022
 land_covars <- 
-  lapply(2013:2022, land_data_fun)
+  lapply(2013:2023, land_data_fun)
 
 # garbage collection to reduce memory usage
 gc(verbose=TRUE, full=TRUE)
