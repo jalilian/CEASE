@@ -60,7 +60,7 @@ land_data_fun <- function(year,
     year = as.character(year),
     month = sprintf("%02d", 1:12),
     day = sprintf("%02d", 1:31),
-    time = "00:00",
+    time = "12:00",
     # geographical region
     #      North, West, South, East
     area = c(14.9, 32.9, 3.4, 48),
@@ -156,8 +156,8 @@ land_data_fun <- function(year,
     
     # aggregate by the US CDC version of epidemiological year and week
     dat[[i]] <- dat[[i]] %>%
-      mutate(epi_year=epiyear(time), 
-             epi_week=epiweek(time)) %>%
+      mutate(epi_year=year(time), 
+             epi_week=week(time)) %>%
       group_by(ADM2_EN, 
                epi_year, epi_week) %>%
       summarise(mean=mean(Freq),

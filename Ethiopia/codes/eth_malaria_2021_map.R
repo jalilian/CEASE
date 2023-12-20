@@ -408,8 +408,8 @@ expand_grid(RegionName2=unique(eth_data %>% pull(RegionName2)),
 # =========================================================
 # aggregate by zones
 eth_data <- eth_data %>% 
-  mutate(date2=as.Date(date2)) %>%
-  group_by(RegionName2, ZoneName2, date2, Year, Epidemic_Week) %>%
+  mutate(date1=as.Date(date1)) %>%
+  group_by(RegionName2, ZoneName2, date1, Year, Epidemic_Week) %>%
   summarise(
     `Total Malaria Confirmed and Clinical`=
       sum(`Total Malaria Confirmed and Clinical`),
@@ -428,7 +428,7 @@ eth_data <- eth_data %>%
   ) %>%
   rename(RegionName=RegionName2,
          ZoneName=ZoneName2,
-         Date=date2) %>%
+         Date=date1) %>%
   ungroup()
 
 # save the data as an R data.frame
