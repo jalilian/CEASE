@@ -4,6 +4,18 @@ library("tidyverse")
 library("ggpubr")
 # =========================================================
 
+# data administrative boundary data from a shapefile provided by OCHA
+eth_map <- 
+  readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2021_OCHA.rds"))
+
+# merge Woreds in each zone
+eth_map <- eth_map %>%
+  group_by(ADM1_EN, ADM2_EN) %>%
+  summarise(geometry=st_union(geometry),
+            Total_pop=sum(Total)) %>%
+  ungroup() %>%
+  rename(RegionName=ADM1_EN, ZoneName=ADM2_EN)
+
 # read the EPHI weekly malaria surveillance data
 eth_data <- 
   readRDS("~/Downloads/Ethiopia/eth_data.rds") %>%
@@ -21,18 +33,10 @@ eth_data <- eth_data %>%
 # create indices for spatial and temporal units
 eth_data <- eth_data %>%
   # create indices for temporal units
-  left_join(tibble(Date=seq(min(eth_data$Date), 
-                            max(eth_data$Date), 
-                            by=7)) %>%
-              mutate(idx_week=1:length(Date),
-                     idx_week2=idx_week,
-                     idx_month=substr(Date, 1, 7),
-                     idx_month=match(idx_month, 
-                                     unique(idx_month)),
-                     idx_year=substr(Date, 1, 4),
-                     idx_year=match(idx_year, 
-                                    unique(idx_year))),
-            by=join_by(Date)) %>%
+  mutate(idx_year=match(Year, sort(unique(Year))),
+         idx_week=match(paste0(Year, Epidemic_Week),
+                        unique(paste0(Year, Epidemic_Week))),
+         idx_week2=idx_week) %>%
   # create region and zone index
   left_join(eth_map %>% 
               mutate(idx_region=match(RegionName, unique(RegionName)),
@@ -42,17 +46,7 @@ eth_data <- eth_data %>%
                      idx_region, idx_zone, 
                      Total_pop),
             by=join_by(RegionName, ZoneName)) 
-# data administrative boundary data from a shapefile provided by OCHA
-eth_map <- 
-  readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2021_OCHA.rds"))
 
-# merge Woreds in each zone
-eth_map <- eth_map %>%
-  group_by(ADM1_EN, ADM2_EN) %>%
-  summarise(geometry=st_union(geometry),
-            Total_pop=sum(Total)) %>%
-  ungroup() %>%
-  rename(RegionName=ADM1_EN, ZoneName=ADM2_EN)
 
 # read spatial covariates 
 spat_covars <- 
@@ -93,10 +87,7 @@ spat_temp_covars %>%
   summarise_all(~ sum(is.na(.))) %>% 
   t()
 
-
-
 # =========================================================
-
 
 eth_data <- eth_data %>%
   # merge covariates
@@ -332,18 +323,18 @@ fit <-
          land_cover_mode + land_cover_percent +
          elevation_mean + elevation_min + elevation_max + 
          elevation_sd +
-         f(idx_month, model="rw2") +
+         f(idx_week, model="rw2") +
          f(Epidemic_Week, model="rw2", 
            scale.model=TRUE, constr=TRUE,
            #group=idx_zone, 
            cyclic=TRUE) +
-         #f(idx_week, model="ar", order=1, 
-        #  constr=TRUE) + 
-         f(idx_zone, model="iid", group=idx_week, 
-           control.group=list(model="ar1")), 
-         #f(idx_zone, model='besag', graph=H, 
-        #   scale.model=TRUE, constr=TRUE, 
-         #  adjust.for.con.comp=TRUE),
+         f(idx_week2, model="ar", order=1, 
+          constr=TRUE) + 
+         #f(idx_zone, model="iid", group=idx_week, 
+        #   control.group=list(model="ar1")), 
+         f(idx_zone, model='besag', graph=H, 
+           scale.model=TRUE, constr=TRUE, 
+           adjust.for.con.comp=TRUE),
        data=eth_data, E=E,
        family = "gpoisson",
        control.predictor=list(compute=TRUE, link=1),
