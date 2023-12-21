@@ -5,7 +5,16 @@ library("ggpubr")
 # =========================================================
 
 # read the EPHI weekly malaria surveillance data
-eth_data <- readRDS("~/Downloads/Ethiopia/eth_data.rds")
+eth_data <- 
+  readRDS("~/Downloads/Ethiopia/eth_data.rds") %>%
+  # rename the response variable
+  rename(Total_confirmed=`Total Malaria Confirmed and Clinical`)
+
+# check for ,issing values in the response variable
+eth_data %>% filter(is.na(Total_confirmed))
+# remove spatio-temporal units with missing values for the response variable
+eth_data <- eth_data %>%
+  filter(!is.na(Total_confirmed))
 
 # data administrative boundary data from a shapefile provided by OCHA
 eth_map <- 
@@ -86,8 +95,6 @@ eth_data <- eth_data %>%
                      idx_region, idx_zone, 
                      Total_pop),
             by=join_by(RegionName, ZoneName)) %>%
-  # rename the response variable
-  rename(Total_confirmed=`Total Malaria Confirmed and Clinical`) %>%
   # merge covariates
   left_join(spat_temp_covars, 
             by=join_by(ZoneName, Year, Epidemic_Week, Date))
