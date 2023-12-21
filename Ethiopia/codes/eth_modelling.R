@@ -8,7 +8,9 @@ library("ggpubr")
 eth_data <- 
   readRDS("~/Downloads/Ethiopia/eth_data.rds") %>%
   # rename the response variable
-  rename(Total_confirmed=`Total Malaria Confirmed and Clinical`)
+  rename(Total_confirmed=`Total Malaria Confirmed and Clinical`) %>%
+  # arrange records by date
+  arrange(Date, RegionName)
 
 # check for ,issing values in the response variable
 eth_data %>% filter(is.na(Total_confirmed))
@@ -16,6 +18,30 @@ eth_data %>% filter(is.na(Total_confirmed))
 eth_data <- eth_data %>%
   filter(!is.na(Total_confirmed))
 
+# create indices for spatial and temporal units
+eth_data <- eth_data %>%
+  # create indices for temporal units
+  left_join(tibble(Date=seq(min(eth_data$Date), 
+                            max(eth_data$Date), 
+                            by=7)) %>%
+              mutate(idx_week=1:length(Date),
+                     idx_week2=idx_week,
+                     idx_month=substr(Date, 1, 7),
+                     idx_month=match(idx_month, 
+                                     unique(idx_month)),
+                     idx_year=substr(Date, 1, 4),
+                     idx_year=match(idx_year, 
+                                    unique(idx_year))),
+            by=join_by(Date)) %>%
+  # create region and zone index
+  left_join(eth_map %>% 
+              mutate(idx_region=match(RegionName, unique(RegionName)),
+                     idx_zone=1:length(ZoneName)) %>%
+              as_tibble() %>%
+              select(RegionName, ZoneName, 
+                     idx_region, idx_zone, 
+                     Total_pop),
+            by=join_by(RegionName, ZoneName)) 
 # data administrative boundary data from a shapefile provided by OCHA
 eth_map <- 
   readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2021_OCHA.rds"))
@@ -72,29 +98,7 @@ spat_temp_covars %>%
 # =========================================================
 
 
-eth_data <- eth_data %>% 
-  # create time index
-  left_join(tibble(Date=seq(min(eth_data$Date), 
-                            max(eth_data$Date), 
-                            by=7)) %>%
-              mutate(idx_week=1:length(Date),
-                     idx_week2=idx_week,
-                     idx_month=substr(Date, 1, 7),
-                     idx_month=match(idx_month, 
-                                     unique(idx_month)),
-                     idx_year=substr(Date, 1, 4),
-                     idx_year=match(idx_year, 
-                                    unique(idx_year))),
-            by=join_by(Date)) %>%
-  # create region and zone index
-  left_join(eth_map %>% 
-              mutate(idx_region=match(RegionName, unique(RegionName)),
-                     idx_zone=1:length(ZoneName)) %>%
-              as_tibble() %>%
-              select(RegionName, ZoneName, 
-                     idx_region, idx_zone, 
-                     Total_pop),
-            by=join_by(RegionName, ZoneName)) %>%
+eth_data <- eth_data %>%
   # merge covariates
   left_join(spat_temp_covars, 
             by=join_by(ZoneName, Year, Epidemic_Week, Date))
