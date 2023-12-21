@@ -328,10 +328,10 @@ fit <-
            scale.model=TRUE, constr=TRUE,
            #group=idx_zone, 
            cyclic=TRUE) +
-         f(idx_week2, model="ar", order=1, 
-          constr=TRUE) + 
-         #f(idx_zone, model="iid", group=idx_week, 
-        #   control.group=list(model="ar1")), 
+         #f(idx_week2, model="ar", order=1, 
+        #  constr=TRUE) + 
+         f(idx_zone, model="iid", group=idx_week2, 
+           control.group=list(model="ar1")), 
          f(idx_zone, model='besag', graph=H, 
            scale.model=TRUE, constr=TRUE, 
            adjust.for.con.comp=TRUE),
