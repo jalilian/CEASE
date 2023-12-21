@@ -47,26 +47,21 @@ spat_temp_covars <- spat_temp_covars %>%
 #  mutate(across(c(u10_mean:pop_density_sd, land_cover_percent:elevation_sd), 
 #                \(x) scale(x, center=FALSE, scale=TRUE)))
 
+# create date for covariates
+spat_temp_covars <-
+  spat_temp_covars %>%
+  mutate(Date=ymd(paste(Year, "01", "01", sep="-")) + 
+           weeks(Epidemic_Week))
+
 # check for NA in covariates
 spat_temp_covars %>%
   summarise_all(~ sum(is.na(.))) %>% 
   t()
 
-spat_temp_covars <-
-  spat_temp_covars %>%
-  mutate(Date=parse_date_time(paste(Year, 
-                                    Epidemic_Week, 
-                                    1, sep="-"),
-                              "Y-W-w"))
+
+
 # =========================================================
 
-eth_data %>% 
-  filter(is.na(Date)) %>% 
-  count(Year, Epidemic_Week)
-
-# remove all records of week 53 of years 2015 and 2020
-eth_data <- eth_data %>%
-  filter(!is.na(Date))
 
 eth_data <- eth_data %>% 
   # create time index
@@ -91,11 +86,11 @@ eth_data <- eth_data %>%
                      idx_region, idx_zone, 
                      Total_pop),
             by=join_by(RegionName, ZoneName)) %>%
-  # rename the reponse variable
+  # rename the response variable
   rename(Total_confirmed=`Total Malaria Confirmed and Clinical`) %>%
   # merge covariates
   left_join(spat_temp_covars, 
-            by=join_by(ZoneName, Year, Epidemic_Week))
+            by=join_by(ZoneName, Year, Epidemic_Week, Date))
 
 # Repeated weeks 
 eth_data %>% 
@@ -331,9 +326,10 @@ fit <-
            scale.model=TRUE, constr=TRUE,
            #group=idx_zone, 
            cyclic=TRUE) +
-         f(idx_week, model="ar", order=3, 
-          constr=TRUE) + 
-         f(idx_zone, model="iid"), 
+         #f(idx_week, model="ar", order=1, 
+        #  constr=TRUE) + 
+         f(idx_zone, model="iid", group=idx_week, 
+           control.group=list(model="ar1")), 
          #f(idx_zone, model='besag', graph=H, 
         #   scale.model=TRUE, constr=TRUE, 
          #  adjust.for.con.comp=TRUE),
