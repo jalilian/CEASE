@@ -112,7 +112,7 @@ eth_data %>% group_by(Year, Epidemic_Week) %>%
   print(n=700)
 
 
-# comute the expected number of cases under the null model
+# compute the expected number of cases under the null model
 # of spatiotemporal homogeneity
 eth_data <- eth_data %>%
   mutate(E=Total_pop * 
@@ -153,11 +153,11 @@ pitfun <- function(fit, J = 10)
 
 trendplot <- function(fit)
 {
-  reffect <- fit$summary.random$idx_month
+  reffect <- fit$summary.random$idx_week
   names(reffect) <- c("ID", "mean", "sd", "q0.025", "q0.5", "q0.975", "mode", "kld")
   ggplot(data=reffect, 
          mapping=aes(x=fit$.args$data$Date[1] %m+% 
-                       months(unique(fit$.args$data$idx_month) - 1),
+                       weeks(unique(fit$.args$data$idx_week) - 1),
                      y=mean)) +
     geom_hline(yintercept=0, linetype="dashed", 
                color = "red") +
@@ -301,46 +301,45 @@ nb2INLA("map.graph", tmp)
 H <- inla.read.graph(filename="map.graph")
 image(inla.graph2matrix(H), xlab="", ylab="")
 
-fit <- 
-  inla(Total_confirmed ~ 
-         u10_mean + u10_min + u10_max + 
-         u10_sd +
-         v10_mean + v10_min + v10_max + 
-         v10_sd + 
-         lai_hv_mean + lai_hv_min + lai_hv_max+ 
-         lai_hv_sd + 
-         lai_lv_mean + lai_lv_min + lai_lv_max + 
-         lai_lv_sd +
-         skt_mean + skt_min + skt_max + 
-         skt_sd +
-         #sp_mean + #sp_min + sp_max + sp_sd +
-         tp_mean + tp_min + tp_max + 
-         tp_sd + 
-         swvl1_mean + swvl1_min + swvl1_max + 
-         swvl1_sd +
-         pop_density_mean + pop_density_min + pop_density_max + 
-         pop_density_sd + 
-         land_cover_mode + land_cover_percent +
-         elevation_mean + elevation_min + elevation_max + 
-         elevation_sd +
-         f(idx_week, model="rw2") +
-         f(Epidemic_Week, model="rw2", 
-           scale.model=TRUE, constr=TRUE,
-           #group=idx_zone, 
-           cyclic=TRUE) +
-         #f(idx_week2, model="ar", order=1, 
-        #  constr=TRUE) + 
-         f(idx_zone, model="iid", group=idx_week2, 
-           control.group=list(model="ar1")), 
-         f(idx_zone, model='besag', graph=H, 
-           scale.model=TRUE, constr=TRUE, 
-           adjust.for.con.comp=TRUE),
-       data=eth_data, E=E,
-       family = "gpoisson",
-       control.predictor=list(compute=TRUE, link=1),
-       control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
-                            return.marginals.predictor=TRUE),
-       num.threads=6, verbose=TRUE, keep=FALSE)
+fit <- inla(
+  Total_confirmed ~ 
+    # fixed covariate effects
+    u10_mean + u10_sd + #u10_min + u10_max + 
+    v10_mean + v10_sd + #v10_min + v10_max + 
+    lai_hv_mean +  lai_hv_sd + #lai_hv_min + lai_hv_max +
+    lai_lv_mean + lai_lv_sd + #lai_lv_min + lai_lv_max +
+    skt_mean + skt_sd + #skt_min + skt_max +
+    #sp_mean + sp_sd + #sp_min + sp_max + 
+    tp_mean + tp_sd + #tp_min + tp_max + 
+    swvl1_mean + swvl1_sd + #swvl1_min + swvl1_max + 
+    pop_density_mean + pop_density_sd + #pop_density_min + pop_density_max +
+    land_cover_mode + land_cover_percent +
+    elevation_mean + elevation_sd + #elevation_min + elevation_max +
+    # random spatial and temporal effects
+    f(idx_week, model="rw2", scale.model=TRUE, group=idx_zone) +
+    f(idx_week2, model="seasonal", season.length=52, scale.model=TRUE) + 
+  #  f(Epidemic_Week, model="rw2", 
+  #    scale.model=TRUE, constr=TRUE,
+      #group=idx_zone, 
+  #    cyclic=TRUE) +
+  #  f(idx_region, model="iid") +
+    #f(idx_zone, model="iid"), #+
+    f(idx_zone, model="bym2", graph=H, scale.model=TRUE),
+    #f(idx_week2, model="ar", order=1, 
+    #  constr=TRUE, group=idx_zone, 
+    #  control.group=list(model="iid")),# + 
+    #f(idx_zone, model="iid", group=idx_week2, 
+    #  control.group=list(model="ar1")), 
+  #f(idx_zone, model='besag', graph=H, 
+  #   scale.model=TRUE, constr=TRUE, 
+  #   adjust.for.con.comp=TRUE),
+  data=eth_data, E=E,
+  family = "gpoisson",
+  control.predictor=list(compute=TRUE, link=1),
+  control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
+                       return.marginals.predictor=TRUE),
+  num.threads=6, verbose=TRUE, keep=FALSE
+  )
 
 printmodel(fit)
 pitfun(fit)
