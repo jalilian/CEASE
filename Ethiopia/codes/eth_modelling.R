@@ -304,24 +304,23 @@ image(inla.graph2matrix(H), xlab="", ylab="")
 fit <- inla(
   Total_confirmed ~ 
     # fixed covariate effects
-    u10_mean + u10_sd + #u10_min + u10_max + 
-    v10_mean + v10_sd + #v10_min + v10_max + 
-    lai_hv_mean +  lai_hv_sd + #lai_hv_min + lai_hv_max +
-    lai_lv_mean + lai_lv_sd + #lai_lv_min + lai_lv_max +
-    skt_mean + skt_sd + #skt_min + skt_max +
+    u10_mean + u10_sd + u10_min + u10_max + 
+    v10_mean + v10_sd + v10_min + v10_max + 
+    lai_hv_mean +  lai_hv_sd + lai_hv_min + lai_hv_max +
+    lai_lv_mean + lai_lv_sd + lai_lv_min + lai_lv_max +
+    skt_mean + skt_sd + skt_min + skt_max +
     #sp_mean + sp_sd + #sp_min + sp_max + 
-    tp_mean + tp_sd + #tp_min + tp_max + 
-    swvl1_mean + swvl1_sd + #swvl1_min + swvl1_max + 
-    pop_density_mean + pop_density_sd + #pop_density_min + pop_density_max +
+    tp_mean + tp_sd + tp_min + tp_max + 
+    swvl1_mean + swvl1_sd + swvl1_min + swvl1_max + 
+    pop_density_mean + pop_density_sd + pop_density_min + pop_density_max +
     land_cover_mode + land_cover_percent +
-    elevation_mean + elevation_sd + #elevation_min + elevation_max +
+    elevation_mean + elevation_sd + elevation_min + elevation_max +
     # random spatial and temporal effects
     f(idx_week, model="rw2", scale.model=TRUE, group=idx_zone) +
-    f(idx_week2, model="seasonal", season.length=52, scale.model=TRUE) + 
-  #  f(Epidemic_Week, model="rw2", 
-  #    scale.model=TRUE, constr=TRUE,
-      #group=idx_zone, 
-  #    cyclic=TRUE) +
+    #f(idx_week2, model="seasonal", season.length=52, scale.model=TRUE) + 
+    f(Epidemic_Week, model="rw1", 
+      scale.model=TRUE, constr=TRUE,
+      group=idx_zone, cyclic=TRUE) +
   #  f(idx_region, model="iid") +
     #f(idx_zone, model="iid"), #+
     f(idx_zone, model="bym2", graph=H, scale.model=TRUE),
@@ -338,7 +337,7 @@ fit <- inla(
   control.predictor=list(compute=TRUE, link=1),
   control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
                        return.marginals.predictor=TRUE),
-  num.threads=6, verbose=TRUE, keep=FALSE
+  num.threads=5, verbose=TRUE, keep=FALSE
   )
 
 printmodel(fit)
