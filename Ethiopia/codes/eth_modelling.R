@@ -53,7 +53,7 @@ spat_covars <-
   readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/spat_covars.rds"))
 
 spat_covars <- spat_covars %>%
-  mutate(land_cover_percent=as.numeric(land_cover_percent))
+  mutate_if(is.table, as.numeric)
 
 # read spatiotemporal covariates
 spat_temp_covars <- 
@@ -330,7 +330,9 @@ fit <- inla(
     tp_mean + tp_sd + tp_min + tp_max + 
     swvl1_mean + swvl1_sd + swvl1_min + swvl1_max + 
     pop_density_mean + pop_density_sd + pop_density_min + pop_density_max +
-    land_cover_mode + land_cover_percent +
+    land_cover_1 + land_cover_2 + land_cover_3 +
+    land_cover_4 + land_cover_5 + land_cover_6 +
+    land_cover_7 + land_cover_8 + land_cover_10 +
     elevation_mean + elevation_sd + elevation_min + elevation_max +
     # random spatial and temporal effects
     f(idx_week, model="rw2") +
