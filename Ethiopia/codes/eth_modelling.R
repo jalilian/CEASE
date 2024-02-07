@@ -176,6 +176,23 @@ seasplot <- function(fit)
   names(reffect) <- c("ID", "mean", "sd", 
                       "q0.025", "q0.5", "q0.975", 
                       "mode", "kld")
+  reffect$idx_zone <- rep(1:92, each=53)
+  reffect$ZoneName <- factor(rep(eth_map$ZoneName, each=53))
+  ggplot(data=reffect, 
+         mapping=aes(x=ID, y=mean)) +
+    geom_hline(yintercept=0, linetype="dashed", color="red") +
+    geom_line() + 
+    geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25, col='blue') +
+    xlab('Epidemic week') + ylab('Recurring seasonal patterns') +
+    theme_light() + facet_wrap(~ ZoneName, ncol=8)
+}
+
+seasplot2 <- function(fit)
+{
+  reffect <- fit$summary.random$Epidemic_Week
+  names(reffect) <- c("ID", "mean", "sd", 
+                      "q0.025", "q0.5", "q0.975", 
+                      "mode", "kld")
   ggplot(data=reffect, 
          mapping=aes(x=unique(fit$.args$data$Epidemic_Week), y=mean)) +
     geom_hline(yintercept=0, linetype="dashed", 
@@ -291,7 +308,7 @@ spatialplot <- function(fit, what="random_effect", cmap=eth_map)
     geom_sf(data=ff, mapping=aes(fill=`0.975quant`)) +
     scale_fill_distiller(palette = "Reds", direction=1) +
     theme_light()
-  ggarrange(g1, g0, g2, nrow=1)
+  ggarrange(g0, ggarrange(g1, g2, nrow=1), ncol=1)
 }
 
 library("spdep")
@@ -316,28 +333,22 @@ fit <- inla(
     land_cover_mode + land_cover_percent +
     elevation_mean + elevation_sd + elevation_min + elevation_max +
     # random spatial and temporal effects
-    f(idx_week, model="rw2", scale.model=TRUE, group=idx_zone) +
-    #f(idx_week2, model="seasonal", season.length=52, scale.model=TRUE) + 
+    f(idx_week, model="rw2") +
     f(Epidemic_Week, model="rw1", 
-      scale.model=TRUE, constr=TRUE,
-      group=idx_zone, cyclic=TRUE) +
-  #  f(idx_region, model="iid") +
-    #f(idx_zone, model="iid"), #+
-    f(idx_zone, model="bym2", graph=H, scale.model=TRUE),
-    #f(idx_week2, model="ar", order=1, 
-    #  constr=TRUE, group=idx_zone, 
-    #  control.group=list(model="iid")),# + 
-    #f(idx_zone, model="iid", group=idx_week2, 
-    #  control.group=list(model="ar1")), 
-  #f(idx_zone, model='besag', graph=H, 
-  #   scale.model=TRUE, constr=TRUE, 
-  #   adjust.for.con.comp=TRUE),
+      scale.model=TRUE, constr=TRUE, cyclic=TRUE, 
+      group=idx_zone, 
+      control.group=list(model="besag", graph=H, scale.model=TRUE,
+                         adjust.for.con.comp=TRUE)),
+    #f(idx_zone, model="iid"),
+    #f(idx_zone, model="bym2", graph=H, scale.model=TRUE,
+    #  adjust.for.con.comp=TRUE, constr=TRUE),
   data=eth_data, E=E,
-  family = "gpoisson",
+  family = "nbinomial",
+  control.family = list(variant=0),
   control.predictor=list(compute=TRUE, link=1),
   control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
                        return.marginals.predictor=TRUE),
-  num.threads=5, verbose=TRUE, keep=FALSE
+  num.threads=4, verbose=TRUE, keep=FALSE
   )
 
 printmodel(fit)
@@ -381,4 +392,21 @@ bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
   labs(x="odds ratio") +
   theme_light()
 
-  
+
+v <- fit$summary.fitted.values
+v$Epidemic_Week <- eth_data$Epidemic_Week
+v$idx_week <- eth_data$idx_week
+v$ZoneName <- eth_data$ZoneName
+
+v %>% group_by(idx_week) %>% summarise(a=mean(mean)) %>%
+  ggplot(aes(x=idx_week, y=a)) + geom_line()
+
+v %>% group_by(Epidemic_Week) %>% summarise(a=mean(mean)) %>%
+  ggplot(aes(x=Epidemic_Week, y=a)) + geom_line()
+
+eth_map %>% left_join(
+  v %>% group_by(ZoneName) %>% summarise(a=mean(mean)),
+  by = join_by(ZoneName)
+  ) %>%
+  ggplot(aes(fill=a)) + geom_sf()
+

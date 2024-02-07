@@ -22,8 +22,8 @@ eth_map <- eth_map %>%
 extract_raster_covars <- function(downloaded_file,
                                   data_file,
                                   map,
-                                  stat="mean",
-                                  temp_dir="/tmp/eth_raster/")
+                                  stat="numeric",
+                                  temp_dir=tempdir())
 {
   # create a temporary directory to extract the downloaded file
   if (!dir.exists(temp_dir))
@@ -34,22 +34,24 @@ extract_raster_covars <- function(downloaded_file,
   unzip(zipfile=downloaded_file, exdir=temp_dir)
   
   # read the raster data using the 'terra' package
-  raster <- rast(paste0(temp_dir, data_file))
+  raster <- terra::rast(paste0(temp_dir, "/", data_file))
   
   out <- vector("list", length=nrow(map))
   for (i in 1:nrow(map))
   {
     cat(i, ": ")
-    cp <- terra::crop(raster, map[i, ], mask=TRUE, touches=TRUE)
+    cp <- terra::crop(raster, map[i, ], mask=FALSE, touches=TRUE)
+    cp <- mask(cp, map[i, ])
     cp <- values(cp)
     cp <- cp[!is.na(cp)]
     
-    out[[i]] <- switch(stat, mean={
+    out[[i]] <- switch(stat, numeric={
       c(mean=mean(cp), min=min(cp), max=max(cp), sd=sd(cp))
-    }, mode={
-      cp <- sort(table(cp), decreasing=TRUE)
-      cp <- round(100 * cp[1] / sum(cp), 2)
-      c(mode=names(cp), percent=unname(cp))
+    }, categorical={
+      prop.table(table(cp))
+      #cp <- sort(table(cp), decreasing=TRUE)
+      #cp <- round(100 * cp[1] / sum(cp), 2)
+      #c(mode=names(cp), percent=unname(cp))
     })
     cat(" done\n")
   }
@@ -57,7 +59,10 @@ extract_raster_covars <- function(downloaded_file,
   # clean up the temporary directory
   unlink(temp_dir, recursive=TRUE)
   
-  return(bind_rows(out))
+  out <- bind_rows(out)
+  if (stat == "categorical")
+    out <- out %>% as.data.frame() %>% replace(is.na(.), 0)
+  return(out)
 }
 
 # read the Gridded Population of the World (GPW), v4
@@ -69,7 +74,7 @@ pop_density <-
     paste0("~/Downloads/Africa_covars/",
            "gpw-v4-population-density-rev11_2020_30_sec_tif.zip"),
     "gpw_v4_population_density_rev11_2020_30_sec.tif",
-    map=eth_map, stat="mean"
+    map=eth_map, stat="numeric"
   )
 
 # read S2 Prototype Land Cover 20m Map of Africa 2016
@@ -78,10 +83,10 @@ pop_density <-
 # https://2016africalandcover20m.esrin.esa.int/
 land_cover <- 
   extract_raster_covars(
-    paste0("~/Downloads/Africa_covars/",
+    downloaded_file=paste0("~/Downloads/Africa_covars/",
     "ESACCI-LC-L4-LC10-Map-20m-P1Y-2016-v1.0.zip"),
-    "ESACCI-LC-L4-LC10-Map-20m-P1Y-2016-v1.0.tif",
-    map=eth_map, stat="mode"
+    data_file="ESACCI-LC-L4-LC10-Map-20m-P1Y-2016-v1.0.tif",
+    map=eth_map, stat="categorical"
   )
 
 # Void-filled digital elevation mode of Africa, 2007 [ArcGRID]
@@ -93,7 +98,7 @@ elevation <-
     paste0("~/Downloads/Africa_covars/",
     "data.zip"),
     "af_dem_15s/",
-    map=eth_map, stat="mean"
+    map=eth_map, stat="numeric"
   )
 
 # combine raster covariates
