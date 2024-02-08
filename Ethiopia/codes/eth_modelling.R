@@ -72,9 +72,17 @@ spat_temp_covars <- spat_temp_covars %>%
   left_join(spat_covars, by=join_by(ADM2_EN)) %>%
   rename(ZoneName=ADM2_EN,
          Year=epi_year, 
-         Epidemic_Week=epi_week) #%>%
-#  mutate(across(c(u10_mean:pop_density_sd, land_cover_percent:elevation_sd), 
-#                \(x) scale(x, center=FALSE, scale=TRUE)))
+         Epidemic_Week=epi_week)
+
+# scale covariates
+scale2 <- function(x)
+{
+  m0 <- min(x, na.rm=TRUE)
+  m1 <- max(x, na.rm=TRUE)
+  (x - m0) / (m1 - m0) 
+}
+spat_temp_covars <- spat_temp_covars %>%
+  mutate(across(u10_mean:elevation_sd, scale2))
 
 # create date for covariates
 spat_temp_covars <-
@@ -87,6 +95,8 @@ spat_temp_covars %>%
   summarise_all(~ sum(is.na(.))) %>% 
   t()
 
+spat_temp_covars %>%
+  mutate
 # =========================================================
 
 eth_data <- eth_data %>%
