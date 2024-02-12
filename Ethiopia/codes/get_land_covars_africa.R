@@ -157,9 +157,10 @@ if (FALSE)
   get_covars(cbind(runif(10, -10, 10), runif(10, 10, 20)),
              path="~/Downloads/Africa_covars/")
   
+  library("sf")
   eth_map <- 
     readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2021_OCHA.rds"))
-  
+
   get_covars(eth_map[1:5, ],
              path="~/Downloads/Africa_covars/")
 }
