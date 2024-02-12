@@ -163,6 +163,6 @@ if (FALSE)
   unzip("map.zip", exdir="map/")
   library("sf")
   eth_map <- read_sf("map/", layer="gadm41_ETH_1")
-  get_covars(moz_map,
+  get_covars(eth_map,
              path="~/Downloads/Africa_covars/")
 }
