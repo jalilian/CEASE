@@ -75,14 +75,19 @@ spat_temp_covars <- spat_temp_covars %>%
          Epidemic_Week=epi_week)
 
 # scale covariates
-scale2 <- function(x)
+if (FALSE)
 {
-  m0 <- min(x, na.rm=TRUE)
-  m1 <- max(x, na.rm=TRUE)
-  (x - m0) / (m1 - m0) 
+  scale2 <- function(x)
+  {
+    #m <- range(x, na.rm=TRUE)
+    #(x - m[1]) / (m[2] - m[1]) 
+    (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)
+  }
+  spat_temp_covars <- spat_temp_covars %>%
+    mutate(across(c(u10_mean:pop_density_sd,
+                    elevation_mean:elevation_sd), 
+                  scale2))
 }
-spat_temp_covars <- spat_temp_covars %>%
-  mutate(across(u10_mean:elevation_sd, scale2))
 
 # create date for covariates
 spat_temp_covars <-
@@ -95,8 +100,6 @@ spat_temp_covars %>%
   summarise_all(~ sum(is.na(.))) %>% 
   t()
 
-spat_temp_covars %>%
-  mutate
 # =========================================================
 
 eth_data <- eth_data %>%
@@ -117,16 +120,17 @@ eth_data <- eth_data %>%
   mutate(Total_pop2 = 
            Total_pop * (1 + 2.7 / 100)^(Year - 2021))
 
-eth_data %>% group_by(Year, Epidemic_Week) %>%
-  summarise(sum(Total_pop2), sum(Total_confirmed)) %>%
+eth_data %>% 
+  group_by(Year, Epidemic_Week) %>%
+  summarise(sum(Total_pop), sum(Total_pop2), sum(Total_confirmed)) %>%
   print(n=700)
 
 
 # compute the expected number of cases under the null model
 # of spatiotemporal homogeneity
 eth_data <- eth_data %>%
-  mutate(E=Total_pop * 
-           sum(Total_confirmed, na.rm=TRUE) / sum(Total_pop))
+  mutate(E=Total_pop2 * 
+           sum(Total_confirmed, na.rm=TRUE) / sum(Total_pop2))
 
 
 # =========================================================
@@ -345,16 +349,16 @@ fit <- inla(
     land_cover_7 + land_cover_8 + land_cover_10 +
     elevation_mean + elevation_sd + elevation_min + elevation_max +
     # random spatial and temporal effects
-    f(idx_week, model="rw2") +
-    f(Epidemic_Week, model="rw1", 
+    f(idx_week, model="rw1") +
+    f(Epidemic_Week, model="rw2", 
       scale.model=TRUE, constr=TRUE, cyclic=TRUE, 
-      group=idx_zone, 
-      control.group=list(model="besag", graph=H, scale.model=TRUE,
-                         adjust.for.con.comp=TRUE)),
+      group=idx_zone) + #, 
+      #control.group=list(model="besag", graph=H, scale.model=TRUE,
+      #                   adjust.for.con.comp=TRUE)),
     #f(idx_zone, model="iid"),
-    #f(idx_zone, model="bym2", graph=H, scale.model=TRUE,
-    #  adjust.for.con.comp=TRUE, constr=TRUE),
-  data=eth_data, E=E,
+    f(idx_zone, model="bym2", graph=H, scale.model=TRUE,
+      adjust.for.con.comp=TRUE, constr=TRUE),
+  data=eth_data, E=Total_pop,
   family = "nbinomial",
   control.family = list(variant=0),
   control.predictor=list(compute=TRUE, link=1),
@@ -385,17 +389,25 @@ fit$summary.fixed %>%
              linetype="dashed", 
              color = "red") +
   geom_point() + 
-  geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`))
+  geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`)) +
+  theme_light()
 
 aa <- lapply(fit$marginals.fixed, function(a){ 
-  inla.zmarginal(inla.tmarginal(exp, a))
+  inla.zmarginal(inla.tmarginal(exp, a, method = "quantile"))
 })
+
+aa <- lapply(fit$marginals.fixed, function(a){
+  #inla.emarginal(exp, a)
+  x <- exp(inla.rmarginal(10240, a))
+  as.list(c(mean(x, trim=0.1), sd(x),
+       quantile(x,c(0.025, 0.25, 0.5, 0.75, 0.975))))
+})
+
 bb <- round(matrix(unlist(aa), ncol=7, byrow=TRUE)[, c(1, 3, 7)], 3)
 rownames(bb) <- names(aa)
 bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
   filter(term != "(Intercept)") %>%
   filter(V2 > 1 | V3 < 1) %>%
-  filter(!(term  %in% c("tp_min", "tp_sd", "tp_mean"))) %>%
   ggplot(aes(x=V1, y=term)) +
   geom_vline(xintercept=1, linetype="dashed", 
              color = "red") +
@@ -403,6 +415,7 @@ bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
   geom_errorbar(aes(xmin=V2, xmax=V3)) +
   labs(x="odds ratio") +
   theme_light()
+
 
 
 v <- fit$summary.fitted.values

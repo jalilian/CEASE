@@ -26,20 +26,39 @@ eth_map <- eth_map %>%
 # =========================================================
 # missing data patterns
 
-# number of zones with recorded cases by date
-tmp1 <- data.frame(Date=seq(as.Date("2013-01-07"), 
-                            as.Date("2022-08-15"), 
-                            by=7)) %>%
-  left_join(eth_data %>% count(Date),
-            by = join_by(Date)) %>%
-  mutate(n=if_else(is.na(n), 0, n))
+tmp <- expand_grid(
+  eth_map %>% pull(ZoneName),
+  eth_data %>% 
+    count(Year, Epidemic_Week) %>% select(-n)
+) %>% 
+  rename(ZoneName=`eth_map %>% pull(ZoneName)`)
+
+tmp <- tmp %>% mutate(missing=1)
+for (i in 1:nrow(tmp))
+{
+  if (nrow(eth_data %>% 
+           filter(ZoneName == tmp$ZoneName[i],
+                  Year == tmp$Year[i],
+                  Epidemic_Week == tmp$Epidemic_Week[i])))
+  {
+    tmp$missing[i] <- 0
+  }
+}
+
+# number of missing zones by date
+tmp1 <- tmp %>% 
+  mutate(Date=ymd(paste(Year, "01", "01", sep="-")) + 
+           weeks(Epidemic_Week)) %>%
+  group_by(Date) %>% 
+  summarise(n=sum(missing))
 
 tmp1 %>%
-  ggplot(aes(x=Date, y=(1 - n / 92))) +
+  ggplot(aes(x=Date, y=n / 92 * 100)) + 
   geom_line() +
-  labs(y="percentage of missing weekly malaria records by date") +
-  scale_y_continuous(labels=scales::percent)  +
+  labs(x="date", y="percentage of weekly missing zones") +
   theme_light()
+
+
 
 library("tseries")
 # the augmented Dickey-Fuller (ADF) test for stationarity (unit root)
@@ -47,19 +66,20 @@ adf.test(tmp1 %>% pull(n))
 # Kwiatkowski-Phillips-Schmidt-Shin (KPSS) for stationarity (constant mean)
 kpss.test(tmp1 %>% pull(n))
 
-# number of weeks with recorded cases by zones
-tmp2 <- eth_map %>%
-  left_join(eth_data %>% 
-              count(ZoneName, Year) %>%
-              pivot_wider(names_from=Year, values_from=n),
-            by=join_by(ZoneName)) %>%
-  replace(is.na(.), 0) %>%
-  pivot_longer(cols=`2013`:`2022`, 
-               names_to="Year", 
-               values_to ="n") 
+# number of missing weeks by zone
+tmp2 <- tmp %>% 
+  group_by(ZoneName, Year) %>% 
+  summarise(n=sum(missing)) %>%
+  ungroup() %>%
+  mutate(m=tmp %>% count(ZoneName, Year) %>% pull(n)) %>%
+  mutate(miss = 100 * n / m) %>% 
+  select(-c(n, m))
+
+tmp2 <- eth_map %>% 
+  left_join(tmp2, by=join_by(ZoneName))
 
 tmp2 %>%
-  ggplot(aes(fill=1 - n/374)) + 
+  ggplot(aes(fill= miss)) + 
   geom_sf() +
   scale_fill_distiller(name="missing", 
                        labels=scales::percent,
@@ -68,16 +88,33 @@ tmp2 %>%
   theme_light() +
   theme(legend.position='bottom')
 
+
+# Moran's I test for spatial autocorrelation
 library("spdep")
 
+# overall
+W <- nb2listw(poly2nb(
+  tmp2 %>% 
+    group_by(ZoneName) %>% 
+    summarise(miss=sum(miss))
+))
+
+moran.test(
+  tmp2 %>% 
+    group_by(ZoneName) %>% 
+    summarise(miss=sum(miss)) %>% pull(miss),
+  listw = W)
+
+# by Year
 for (year in c(2013:2019, 2022))
 {
   W <- nb2listw(poly2nb(tmp2 %>% filter(Year == year)), 
                 style = "B")
   # Moran's I test for spatial autocorrelation
-  print(moran.test(tmp2 %>% filter(Year == year) %>% pull(n), 
+  print(moran.test(tmp2 %>% filter(Year == year) %>% pull(miss), 
              listw = W))
 }
+
 
 # =========================================================
 # confirmed cases 
