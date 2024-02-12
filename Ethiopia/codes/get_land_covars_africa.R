@@ -128,9 +128,11 @@ get_covars <- local({
         })
         cat("done.\n")
       }
-      out <- data.frame(out)
+      out <- dplyr::bind_rows(out)
+      colnames(out) <- paste0(names(files)[j], "_", colnames(out))
       if (files[[j]][3] == "categorical")
         out[is.na(out)] <- 0
+      covars[[j]] <- out
     }
     data.frame(covars)
   }
@@ -155,14 +157,9 @@ if (FALSE)
   get_covars(cbind(runif(10, -10, 10), runif(10, 10, 20)),
              path="~/Downloads/Africa_covars/")
   
-  setwd(tempdir())
-  download.file(
-    "https://geodata.ucdavis.edu/gadm/gadm4.1/shp/gadm41_ETH_shp.zip",
-    destfile="map.zip"
-    )
-  unzip("map.zip", exdir="map/")
-  library("sf")
-  eth_map <- read_sf("map/", layer="gadm41_ETH_1")
-  get_covars(eth_map,
+  eth_map <- 
+    readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2021_OCHA.rds"))
+  
+  get_covars(eth_map[1:5, ],
              path="~/Downloads/Africa_covars/")
 }
