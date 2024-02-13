@@ -77,12 +77,12 @@ get_csd <- local({
                verbose=TRUE)
     
     # extract downloaded Zip file
-    unzip(zipfile=paste0(temp_dir, "cds_hourly_", year, ".zip"), 
-          exdir=paste0(temp_dir, year, "/"), 
+    unzip(zipfile=paste0("cds_hourly_", year, ".zip"), 
+          exdir=paste0(year, "/"), 
           overwrite=TRUE)
     
     # open netCDF file containing the data
-    nc_data <- nc_open(paste0(temp_dir, year, "/data.nc"))
+    nc_data <- nc_open(paste0(year, "/data.nc"))
     
     # extract longitude
     lon <- ncvar_get(nc_data, "longitude")
@@ -123,15 +123,11 @@ get_csd <- local({
       dat[[i]] <- dat[[i]] %>%
         mutate(longitude=lon[lon_idx],
                latitude=lat[lat_idx],
-               time=dt[time_idx]) 
-      
-      # rename variables for clarity
-      dat[[i]] <- dat[[i]] %>% 
-        setNames(c(
-          colnames(dat[[i]])[1:3],
-          paste(vars[i], 
-                c("mean", "min", "max", "sd"), sep="_")
-        ))
+               time=dt[time_idx]) %>%
+        select(-c(lon_idx, lat_idx, time_idx)) %>%
+        relocate(Freq, .after=time) %>%
+        # rename variable for clarity
+        rename(!!quo_name(vars[i]) := "Freq")
     }
     
     # close the open netCDF file
@@ -140,11 +136,9 @@ get_csd <- local({
     # combine data frames for different variables using a full join
     dat <- dat %>% 
       reduce(full_join, 
-             by = join_by(ADM2_EN, 
-                          epi_year, epi_week))
+             by = join_by(longitude, latitude, time))
     return(dat)
   }
-  
 })
 
 if (FALSE)
@@ -155,5 +149,5 @@ if (FALSE)
   
   #      North, West, South, East
   area <- c(10, 30, 5, 35)
-  a <- get_csd(user, cds.key, 2020, 8, area)
+  a <- get_csd(user, cds.key, year=2020, month=8, area)
 }
