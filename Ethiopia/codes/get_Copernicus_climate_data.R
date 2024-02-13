@@ -10,7 +10,7 @@
 # temporal availability: from January 1981 to 2-3 months before the present
 # =========================================================
 
-get_csd <- local({
+get_cds <- local({
   library("tidyverse")
   library("ecmwfr")
   library("ncdf4")
@@ -26,9 +26,10 @@ get_csd <- local({
              "total_precipitation", 
              "volumetric_soil_water_layer_1")
   
-  get_data <- function(user, cds.key,
-                       year, month, area, 
-                       temp_dir=NULL)
+  get_cds_area <- function(user, cds.key,
+                           year, month, 
+                           area, 
+                           temp_dir=NULL)
   {
     # set secret ECMWF token
     wf_set_key(user=user, key=cds.key, service="cds")
@@ -139,6 +140,54 @@ get_csd <- local({
              by = join_by(longitude, latitude, time))
     return(dat)
   }
+  
+  get_cds_points <- function(user, cds.key,
+                             year, month, 
+                             coords,
+                             temp_dir=NULL)
+  {
+    # coordinates of desired locations
+    x1 <- coords[, 1] # longitude
+    y1 <- coords[, 2] # latitude
+    
+    #         North, West, South, East
+    area <- c(max(y1), min(x1), min(y1), max(x1))
+    
+    cds_dat <- get_cds_area(user=user, cds.key=cds.key, 
+                            year=year, month=month,
+                            area=area, temp_dir=temp_dir)
+    
+    # squared Euclidean distance for all desired locations to cds data coordinates
+    dd <- outer(x1, cds_dat$longitude, "-")^2 +
+      outer(y1, cds_dat$latitude, "-")^2
+    
+    # index of the closest cds data location for each desired location
+    idx <- apply(dd, 1, which.min)
+    cds_dat <- cds_dat %>%
+      slice(idx)
+    
+    return(cds_dat)
+  }
+  
+  get_cds_data <- function(user, cds.key,
+                           year, month, 
+                           what,
+                           temp_dir=NULL)
+  {
+    switch(class(what)[1], numeric={
+      if (length(what) == 4)
+        get_cds_area(user=user, cds.key=cds.key, 
+                     year=year, month=month,
+                     area=what, temp_dir=temp_dir)
+      else
+        stop("numeric vector of length 4 is required")
+    }, matrix={
+      get_cds_points(user=user, cds.key=cds.key, 
+                     year=year, month=month,
+                     coords=what, temp_dir=temp_dir)
+    })
+  }
+  
 })
 
 if (FALSE)
@@ -149,5 +198,11 @@ if (FALSE)
   
   #      North, West, South, East
   area <- c(10, 30, 5, 35)
-  a <- get_csd(user, cds.key, year=2020, month=8, area)
+  a <- get_cds(user, cds.key, year=2020, month=8, area)
+  coords <- cbind(seq(30, 35, l=5), 
+        seq(5, 10, l=5))
+  a <- get_cds(user, cds.key, year=2020, month=8, coords)
+  
+  area <- c(9.1559, -79.8560, 9.1511, -79.8455)
+  b <- get_cds(user, cds.key, year=2020, month=8, area)
 }
