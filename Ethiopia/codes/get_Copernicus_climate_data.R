@@ -27,7 +27,10 @@ get_cds <- local({
              "volumetric_soil_water_layer_1")
   
   get_cds_area <- function(user, cds.key,
-                           year, month, 
+                           year, 
+                           month=sprintf("%02d", 1:12),
+                           day=sprintf("%02d", 1:31), 
+                           time="12:00",
                            area, 
                            temp_dir=NULL)
   {
@@ -53,9 +56,9 @@ get_cds <- local({
       variable = cvars,
       # temporal framework: year, month, day, hour
       year = as.character(year),
-      month = as.character(month),#sprintf("%02d", 1:12),
-      day = sprintf("%02d", 1:31),
-      time = "12:00",
+      month = as.character(month),
+      day = as.character(day),
+      time = as.character(time),
       # geographical region
       #      North, West, South, East
       area = area,
@@ -109,6 +112,14 @@ get_cds <- local({
         vals <- vals[, , idx_3, ]
       }
       
+      if(length(dim(vals)) < 3)
+      {
+        vals <- array(vals, 
+                      dim=c(length(lon), 
+                            length(lat), 
+                            length(dt)))
+      }
+      
       # define dimension names and indices
       dimnames(vals) <- 
         list(lon_idx=1:length(lon), 
@@ -142,7 +153,10 @@ get_cds <- local({
   }
   
   get_cds_points <- function(user, cds.key,
-                             year, month, 
+                             year,
+                             month=sprintf("%02d", 1:12),
+                             day=sprintf("%02d", 1:31),
+                             time="12:00",
                              coords,
                              temp_dir=NULL)
   {
@@ -154,7 +168,8 @@ get_cds <- local({
     area <- c(max(y1), min(x1), min(y1), max(x1))
     
     cds_dat <- get_cds_area(user=user, cds.key=cds.key, 
-                            year=year, month=month,
+                            year=year, month=month, 
+                            day=day, time=time,
                             area=area, temp_dir=temp_dir)
     
     # squared Euclidean distance for all desired locations to cds data coordinates
@@ -169,22 +184,61 @@ get_cds <- local({
     return(cds_dat)
   }
   
+  get_cds_map <- function(user, cds.key,
+                          year,
+                          month=sprintf("%02d", 1:12),
+                          day=sprintf("%02d", 1:31),
+                          time="12:00",
+                          map,
+                          temp_dir=NULL)
+  {
+    library("sf")
+    area <- st_bbox(map)
+    #         North, West, South, East
+    area <- c(area[4], area[1:3])
+    
+    cds_dat <- get_cds_area(user=user, cds.key=cds.key, 
+                            year=year, month=month, 
+                            day=day, time=time,
+                            area=area, temp_dir=temp_dir)
+    
+    cds_dat <- st_as_sf(cds_dat, 
+                        coords=c("longitude", "latitude"),
+                        crs=st_crs("wgs84"))
+    
+    # conduct a spatial join to determine points inside specific map regions
+    cds_dat <- st_join(cds_dat, map, join=st_within) %>%
+      na.omit()
+    
+    return(cds_dat)
+  }
+  
   get_cds_data <- function(user, cds.key,
-                           year, month, 
+                           year, 
+                           month=sprintf("%02d", 1:12),
+                           day=sprintf("%02d", 1:31), 
+                           time="12:00",
                            what,
                            temp_dir=NULL)
   {
     switch(class(what)[1], numeric={
       if (length(what) == 4)
         get_cds_area(user=user, cds.key=cds.key, 
-                     year=year, month=month,
+                     year=year, month=month, 
+                     day=day, time=time,
                      area=what, temp_dir=temp_dir)
       else
         stop("numeric vector of length 4 is required")
     }, matrix={
       get_cds_points(user=user, cds.key=cds.key, 
-                     year=year, month=month,
+                     year=year, month=month, 
+                     day=day, time=time,
                      coords=what, temp_dir=temp_dir)
+    }, sf={
+      get_cds_map(user=user, cds.key=cds.key, 
+                  year=year, month=month, 
+                  day=day, time=time,
+                  map=what, temp_dir=temp_dir)
     })
   }
   
@@ -198,11 +252,12 @@ if (FALSE)
   
   #      North, West, South, East
   area <- c(10, 30, 5, 35)
-  a <- get_cds(user, cds.key, year=2020, month=8, area)
+  a1 <- get_cds(user, cds.key, year=2020, month=8, what=area)
+  
   coords <- cbind(seq(30, 35, l=5), 
         seq(5, 10, l=5))
-  a <- get_cds(user, cds.key, year=2020, month=8, coords)
+  a2 <- get_cds(user, cds.key, year=2020, month=8, what=coords)
   
-  area <- c(9.1559, -79.8560, 9.1511, -79.8455)
-  b <- get_cds(user, cds.key, year=2020, month=8, area)
+  area <- c(9.2, -79.9, 9.1, -79.8)
+  a3 <- get_cds(user, cds.key, year=2020, month=8, what=area)
 }
