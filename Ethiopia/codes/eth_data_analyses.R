@@ -9,8 +9,8 @@ eth_data <-
   readRDS("~/Downloads/Ethiopia/eth_data.rds")
 
 # remove all records of week 53 of the year 2015
-eth_data <- eth_data %>%
-  filter(!is.na(Date))
+eth_data %>%
+  filter(is.na(Date))
 
 # data from a shapefile provided by OCHA
 eth_map <- 
@@ -55,9 +55,9 @@ tmp1 <- tmp %>%
 tmp1 %>%
   ggplot(aes(x=Date, y=n / 92 * 100)) + 
   geom_line() +
+  stat_smooth(se=FALSE) +
   labs(x="date", y="percentage of weekly missing zones") +
   theme_light()
-
 
 
 library("tseries")
@@ -120,6 +120,15 @@ for (year in c(2013:2019, 2022))
 # confirmed cases 
 
 # temporal pattern
+tmp1 <- eth_data %>% 
+  count(Year, Epidemic_Week) %>% select(-n) %>%
+  left_join(eth_data %>% 
+              group_by(Year, Epidemic_Week) %>% 
+              summarise(Total_confirmed=sum(`Total Malaria Confirmed and Clinical`)),
+            by = join_by(Year, Epidemic_Week)) %>% 
+  mutate(Date=ymd(paste(Year, "01", "01", sep="-")) + 
+           weeks(Epidemic_Week))
+  
 tmp1 <- data.frame(Date=seq(as.Date("2013-01-07"), 
                             as.Date("2022-08-15"), 
                             by=7)) %>%
@@ -130,6 +139,7 @@ tmp1 <- data.frame(Date=seq(as.Date("2013-01-07"),
 tmp1 %>%
   ggplot(aes(x=Date, y=Total_confirmed)) +
   geom_line() +
+  stat_smooth() +
   labs(y="Total number of clinically confirmed malaria cases") +
   theme_light()
 
@@ -156,13 +166,13 @@ eth_map %>%
               pivot_wider(names_from=Year, 
                         values_from=Total_confirmed),
             by=join_by(ZoneName)) %>% 
-  pivot_longer(cols=`2013`:`2022`, 
+  pivot_longer(cols=`2013`:`2023`, 
                names_to="Year", 
                values_to ="Total_confirmed") %>%
   # account for population changes by considering constant 2.67% population growth rate
   mutate(Total_pop2=
            Total_pop * ( (1 - 2.67 / 100)^(2022 - as.numeric(Year)) )) %>%
-  mutate(rate=Total_confirmed / Total_pop2 * 1e5) %>%
+  mutate(rate=Total_confirmed / Total_pop2 * 1e4) %>%
   ggplot(aes(fill=rate)) + 
   geom_sf() +
   scale_fill_distiller(name="confirmed", palette = "Reds", direction=1)+

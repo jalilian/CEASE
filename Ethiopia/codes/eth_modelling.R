@@ -175,11 +175,11 @@ trendplot <- function(fit)
                      y=mean)) +
     geom_hline(yintercept=0, linetype="dashed", 
                color = "red") +
-    geom_line() + 
-    geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25, col='blue') +
-    xlab('date') + ylab('Overall long-term trend') +
+    geom_line(col='blue', linewidth=1.1) + 
+    geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25) +
+    xlab('date') + ylab('random effect representing overall long-term trend') +
     #labs(title = NULL, subtitle = NULL, caption = NULL) + 
-    scale_x_date(date_breaks = "12 month" , date_labels = "%b-%Y") + 
+    #scale_x_date(date_breaks = "12 month" , date_labels = "%b-%Y") + 
     theme(axis.text.x = element_text(angle = 0, hjust = 1)) +
     theme_light()
 }
@@ -195,9 +195,10 @@ seasplot <- function(fit)
   ggplot(data=reffect, 
          mapping=aes(x=ID, y=mean)) +
     geom_hline(yintercept=0, linetype="dashed", color="red") +
-    geom_line() + 
-    geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25, col='blue') +
-    xlab('Epidemic week') + ylab('Recurring seasonal patterns') +
+    geom_line(col="blue") + 
+    geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25) +
+    xlab('epidemic week') + 
+    ylab('random effect representing recurring seasonal patterns') +
     theme_light() + facet_wrap(~ ZoneName, ncol=8)
 }
 
@@ -413,25 +414,76 @@ bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
              color = "red") +
   geom_point() + 
   geom_errorbar(aes(xmin=V2, xmax=V3)) +
-  labs(x="odds ratio") +
+  labs(x="relative risk", y="environmental variables with sifnificant effect") +
   theme_light()
 
 
 
-v <- fit$summary.fitted.values
+v <- 10000 * fit$summary.fitted.values
+v$Year <- eth_data$Year
 v$Epidemic_Week <- eth_data$Epidemic_Week
 v$idx_week <- eth_data$idx_week
 v$ZoneName <- eth_data$ZoneName
 
-v %>% group_by(idx_week) %>% summarise(a=mean(mean)) %>%
-  ggplot(aes(x=idx_week, y=a)) + geom_line()
+g1 <- trendplot(fit)
+g2 <- v %>% group_by(Year, Epidemic_Week, idx_week) %>% 
+  summarise(mean=mean(mean),
+            `0.025quant`=mean(`0.025quant`),
+            `0.975quant`=mean(`0.975quant`)) %>%
+  mutate(date=as.Date(paste(Year, "01", "01", sep="-")) %m+% 
+           weeks(Epidemic_Week) - 1) %>%
+  ggplot(aes(x=date, y=mean)) + 
+  geom_line(col='blue', linewidth=1.1) + 
+  geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`), 
+              alpha=0.25) +
+  labs(x="date", y="estimated risk of malaria per 10,000 population") +
+  theme_light()
+
+ggarrange(g1, g2, ncol=1)
+
 
 v %>% group_by(Epidemic_Week) %>% summarise(a=mean(mean)) %>%
   ggplot(aes(x=Epidemic_Week, y=a)) + geom_line()
 
-eth_map %>% left_join(
-  v %>% group_by(ZoneName) %>% summarise(a=mean(mean)),
-  by = join_by(ZoneName)
-  ) %>%
-  ggplot(aes(fill=a)) + geom_sf()
+v %>% group_by(Epidemic_Week, ZoneName) %>%
+  summarise(mean=mean(mean), 
+            `0.025quant`=mean(`0.025quant`),
+            `0.975quant`=mean(`0.975quant`)) %>%
+  ggplot(mapping=aes(x=Epidemic_Week, y=mean)) +
+  #geom_hline(yintercept=0, linetype="dashed", color="red") +
+  geom_line(col='blue') + 
+  geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`), 
+              alpha=0.25) +
+  labs(x='epidemic week', y='estimated risk of malaria per 10,000 population') +
+  theme_light() + facet_wrap(~ ZoneName, ncol=6)
 
+
+g1 <- eth_map %>% 
+  mutate(idx_zone=1:length(ZoneName)) %>%
+  left_join(fit$summary.random$idx_zone %>%
+              rename(idx_zone=ID),
+            by=join_by(idx_zone)) %>%
+  ggplot(aes(fill=mean)) + 
+  geom_sf() +
+  scale_fill_gradient2(name="spatial random effect", 
+                       low='green', 
+                       mid='white', 
+                       high='red', 
+                       midpoint = 0,
+                       na.value = "grey50",
+                       guide = "colourbar",
+                       aesthetics = "fill") +
+  theme_light()
+
+g2 <- eth_map %>% left_join(
+  v %>% group_by(ZoneName) %>% 
+    summarise(mean=mean(mean)),
+  by = join_by(ZoneName)
+) %>%
+  ggplot(aes(fill=mean)) + 
+  geom_sf() +
+  scale_fill_distiller(name="risk per 10,000 population", 
+                       palette = "Reds", direction=1)+
+  theme_light()
+
+ggarrange(g1, g2, nrow=1, legend="bottom")
