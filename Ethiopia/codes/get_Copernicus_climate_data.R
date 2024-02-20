@@ -184,7 +184,10 @@ get_cds <- local({
     for (i in 1:length(out))
     {
       out[[i]] <- cds_dat %>%
-        filter(longitude == x2[idx[i]] & latitude == y2[idx[i]])
+        filter(longitude == x2[idx[i]] & latitude == y2[idx[i]]) %>%
+        mutate(x1=x1, y1=y1) %>%
+        relocate(x1, .before=longitude) %>%
+        relocate(y1, .before=longitude)
     }
 
     return(bind_rows(out))
