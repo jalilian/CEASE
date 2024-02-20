@@ -190,7 +190,9 @@ get_cds <- local({
 
     out <- bind_rows(out) %>%
       relocate(xlong, .before=longitude) %>%
-      relocate(ylat, .before=longitude)
+      relocate(ylat, .before=longitude) %>%
+      rename(cplong=longitude, cplat=latitude,
+             longitude=xlong, latitude=ylat)
     return(out)
   }
   
