@@ -487,3 +487,44 @@ g2 <- eth_map %>% left_join(
   theme_light()
 
 ggarrange(g1, g2, nrow=1, legend="bottom")
+
+
+# Bayesian R2
+# Gelman, A., Goodrich, B., Gabry, J., & Vehtari, A. (2019). 
+# R-squared for Bayesian regression models. The American Statistician.
+nsim <- 1000
+
+yhat <- matrix(NA, nrow=nrow(eth_data), ncol=nsim)
+for (i in 1:nrow(eth_data))
+{
+  yhat[i, ] <- 
+    inla.rmarginal(nsim, 
+                  fit$marginals.fitted.values[[i]]) * eth_data$Total_pop[i]
+}
+# explained variance
+varfit <- apply(yhat, 2, var)
+size <- 
+  inla.rmarginal(nsim, 
+                 fit$marginals.hyperpar$`size for the nbinomial observations (1/overdispersion)`)
+# size <- rep(fit$summary.hyperpar$mean[1], nsim)
+# residual variance
+sigma2 <- matrix(NA, nrow=nrow(eth_data), ncol=nsim)
+for (j in 1:nsim)
+{
+  # negative binomial model
+  sigma2[, j] <- yhat[, j] * (1 + yhat[, j] / size[j])
+}
+varres <- apply(sigma2, 2, mean)
+
+R2 <- varfit / (varfit + varres)
+ggplot(data.frame(R2), aes(x=R2)) + 
+  geom_histogram() +
+  geom_vline(xintercept = mean(R2), col="blue", 
+             linetype="dashed", linewidth=1.25) +
+  theme_light()
+
+mean(R2)
+
+
+mean(apply(yhat, 1, var))
+mean(apply(sigma2, 1, mean))

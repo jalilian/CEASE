@@ -172,16 +172,22 @@ get_cds <- local({
                             day=day, time=time,
                             area=area, temp_dir=temp_dir)
     
+    xy2 <- cds_dat %>% distinct(longitude, latitude)
+    x2 <- xy2 %>% pull(longitude)
+    y2 <- xy2 %>% pull(latitude)
     # squared Euclidean distance for all desired locations to cds data coordinates
-    dd <- outer(x1, cds_dat$longitude, "-")^2 +
-      outer(y1, cds_dat$latitude, "-")^2
+    dd <- outer(x1, x2, "-")^2 + outer(y1, y2, "-")^2
     
     # index of the closest cds data location for each desired location
     idx <- apply(dd, 1, which.min)
-    cds_dat <- cds_dat %>%
-      slice(idx)
-    
-    return(cds_dat)
+    out <- vector("list", length=nrow(coords))
+    for (i in 1:length(out))
+    {
+      out[[i]] <- cds_dat %>%
+        filter(longitude == x2[idx[i]] & latitude == y2[idx[i]])
+    }
+
+    return(bind_rows(out))
   }
   
   get_cds_map <- function(user, cds.key,
