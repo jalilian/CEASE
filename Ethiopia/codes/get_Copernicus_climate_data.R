@@ -185,12 +185,12 @@ get_cds <- local({
     {
       out[[i]] <- cds_dat %>%
         filter(longitude == x2[idx[i]] & latitude == y2[idx[i]]) %>%
-        mutate(x1=x1[i], y1=y1[i])
+        mutate(xlong=x1[i], ylat=y1[i])
     }
 
     out <- bind_rows(out) %>%
-      relocate(x1, .before=longitude) %>%
-      relocate(y1, .before=longitude)
+      relocate(xlong, .before=longitude) %>%
+      relocate(ylat, .before=longitude)
     return(out)
   }
   
