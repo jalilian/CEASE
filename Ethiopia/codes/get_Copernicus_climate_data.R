@@ -158,7 +158,7 @@ get_cds <- local({
     return(dat)
   }
   
-  get_csd_area_rast <- function(user, cds.key,
+  get_cds_area_rast <- function(user, cds.key,
                                 year, 
                                 month=sprintf("%02d", 1:12),
                                 day=sprintf("%02d", 1:31), 
@@ -240,7 +240,8 @@ get_cds <- local({
                             year=year, month=month, 
                             day=day, time=time,
                             area=area, temp_dir=temp_dir)
-    
+    # remove NA's
+    cds_dat <- na.omit(cds_dat)
     xy2 <- cds_dat %>% distinct(longitude, latitude)
     x2 <- xy2 %>% pull(longitude)
     y2 <- xy2 %>% pull(latitude)
