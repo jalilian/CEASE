@@ -165,7 +165,8 @@ get_cds <- local({
     y1 <- coords[, 2] # latitude
     
     #         North, West, South, East
-    area <- c(max(y1), min(x1), min(y1), max(x1))
+    area <- c(max(y1) + 0.2, min(x1) - 0.2, 
+              min(y1) - 0.2, max(x1) + 0.2)
     
     cds_dat <- get_cds_area(user=user, cds.key=cds.key, 
                             year=year, month=month, 
