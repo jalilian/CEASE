@@ -102,17 +102,26 @@ get_cds <- local({
     for (i in 1:length(vars))
     {
       vals <- ncvar_get(nc_data, vars[i])
-      if (length(dim(vals)) > 3)
+      # dimension of values
+      dims <- dim(vals)
+      ndims <- length(dims)
+      # number of dimension of the values
+      if (ndims > 3)
       {
-        idx_3 <- 
-          apply(vals, MARGIN=3, 
-                function(x){ mean(is.na(x)) } 
-          )
-        idx_3 <- which.min(idx_3)
-        vals <- vals[, , idx_3, ]
+        if (ndims == 4 & dims[3] == 2)
+        {
+          idx_3 <- 
+            apply(vals, MARGIN=3, 
+                  function(x){ mean(is.na(x)) } 
+            )
+          idx_3 <- which.min(idx_3)
+          vals <- vals[, , idx_3, ]
+        } else{
+          stop("unexpected data structure")
+        }
       }
       
-      if(length(dim(vals)) < 3)
+      if(ndims < 3)
       {
         vals <- array(vals, 
                       dim=c(length(lon), 
