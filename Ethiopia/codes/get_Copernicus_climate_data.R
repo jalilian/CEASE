@@ -110,12 +110,9 @@ get_cds <- local({
       {
         if (ndims == 4 & dims[3] == 2)
         {
-          idx_3 <- 
-            apply(vals, MARGIN=3, 
-                  function(x){ mean(is.na(x)) } 
-            )
-          idx_3 <- which.min(idx_3)
-          vals <- vals[, , idx_3, ]
+          vals <- apply(vals, 
+                        MARGIN=c(1, 2, 4), 
+                        mean, na.rm=TRUE)
         } else{
           stop("unexpected data structure")
         }
@@ -161,6 +158,141 @@ get_cds <- local({
     return(dat)
   }
   
+  get_csd_area_rast <- function(user, cds.key,
+                                year, 
+                                month=sprintf("%02d", 1:12),
+                                day=sprintf("%02d", 1:31), 
+                                time="12:00",
+                                area, 
+                                temp_dir=NULL)
+  {
+    # set secret ECMWF token
+    wf_set_key(user=user, key=cds.key, service="cds")
+    
+    # create a temporary directory to extract the downloaded file
+    if (is.null(temp_dir))
+      temp_dir <- tempdir()
+    if (!dir.exists(temp_dir))
+    {
+      dir.create(temp_dir)
+    }
+    
+    # set the working directory to the temporary directory
+    setwd(temp_dir)
+    
+    # request for getting land data
+    request <- list(
+      # dataset name
+      dataset_short_name = "reanalysis-era5-land",
+      # climate variables 
+      variable = cvars,
+      # temporal framework: year, month, day, hour
+      year = as.character(year),
+      month = as.character(month),
+      day = as.character(day),
+      time = as.character(time),
+      # geographical region
+      #      North, West, South, East
+      area = area,
+      # output file format
+      format = "netcdf.zip",
+      # output file name
+      target = paste0("cds_hourly_", year, ".zip")
+    )
+    
+    # check the validity of a data request and login credentials
+    wf_check_request(user=user, request=request)
+    
+    # download the data request
+    wf_request(user=user, 
+               request=request,
+               transfer=TRUE, 
+               path=getwd(),
+               # waiting time for download to start
+               time_out=3 * 60 * 60,
+               verbose=TRUE)
+    
+    # extract downloaded Zip file
+    unzip(zipfile=paste0("cds_hourly_", year, ".zip"), 
+          exdir=paste0(year, "/"), 
+          overwrite=TRUE)
+    
+    # open netCDF file containing the data
+    nc_data <- nc_open(paste0(year, "/data.nc"))
+    
+    library("terra")
+    r <- terra::rast(paste0(year, "/data.nc"))
+    
+    # extract longitude
+    lon <- ncvar_get(nc_data, "longitude")
+    # extract latitude
+    lat <- ncvar_get(nc_data, "latitude")
+    # extract date and time
+    dt <- nc.get.time.series(nc_data)
+    # list of names of data variables
+    vars <- nc.get.variable.list(nc_data)
+    
+    # convert nc data to an R data.frame
+    dat <- vector("list", length=length(vars))
+    for (i in 1:length(vars))
+    {
+      vals <- ncvar_get(nc_data, vars[i])
+      # dimension of values
+      dims <- dim(vals)
+      ndims <- length(dims)
+      # number of dimension of the values
+      if (ndims > 3)
+      {
+        if (ndims == 4 & dims[3] == 2)
+        {
+          vals <- apply(vals, 
+                        MARGIN=c(1, 2, 4), 
+                        mean, na.rm=TRUE)
+        } else{
+          stop("unexpected data structure")
+        }
+      }
+      
+      if(ndims < 3)
+      {
+        vals <- array(vals, 
+                      dim=c(length(lon), 
+                            length(lat), 
+                            length(dt)))
+      }
+      
+      # define dimension names and indices
+      dimnames(vals) <- 
+        list(lon_idx=1:length(lon), 
+             lat_idx=1:length(lat),
+             time_idx=1:length(dt))
+      
+      # convert data array to a data frame
+      dat[[i]] <- as.data.frame.table(vals) %>%
+        mutate(lon_idx=as.integer(lon_idx),
+               lat_idx=as.integer(lat_idx),
+               time_idx=as.integer(time_idx))
+      # retrieve data from lon, lat, and time index
+      dat[[i]] <- dat[[i]] %>%
+        mutate(longitude=lon[lon_idx],
+               latitude=lat[lat_idx],
+               time=dt[time_idx]) %>%
+        select(-c(lon_idx, lat_idx, time_idx)) %>%
+        relocate(Freq, .after=time) %>%
+        # rename variable for clarity
+        rename(!!quo_name(vars[i]) := "Freq")
+    }
+    
+    # close the open netCDF file
+    nc_close(nc_data)
+    
+    # combine data frames for different variables using a full join
+    dat <- dat %>% 
+      reduce(full_join, 
+             by = join_by(longitude, latitude, time))
+    return(dat)
+  }
+    
   get_cds_points <- function(user, cds.key,
                              year,
                              month=sprintf("%02d", 1:12),
