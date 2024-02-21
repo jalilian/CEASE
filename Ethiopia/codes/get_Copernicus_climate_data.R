@@ -216,81 +216,8 @@ get_cds <- local({
     unzip(zipfile=paste0("cds_hourly_", year, ".zip"), 
           exdir=paste0(year, "/"), 
           overwrite=TRUE)
-    
-    # open netCDF file containing the data
-    nc_data <- nc_open(paste0(year, "/data.nc"))
-    
-    library("terra")
-    r <- terra::rast(paste0(year, "/data.nc"))
-    
-    # extract longitude
-    lon <- ncvar_get(nc_data, "longitude")
-    # extract latitude
-    lat <- ncvar_get(nc_data, "latitude")
-    # extract date and time
-    dt <- nc.get.time.series(nc_data)
-    # list of names of data variables
-    vars <- nc.get.variable.list(nc_data)
-    
-    # convert nc data to an R data.frame
-    dat <- vector("list", length=length(vars))
-    for (i in 1:length(vars))
-    {
-      vals <- ncvar_get(nc_data, vars[i])
-      # dimension of values
-      dims <- dim(vals)
-      ndims <- length(dims)
-      # number of dimension of the values
-      if (ndims > 3)
-      {
-        if (ndims == 4 & dims[3] == 2)
-        {
-          vals <- apply(vals, 
-                        MARGIN=c(1, 2, 4), 
-                        mean, na.rm=TRUE)
-        } else{
-          stop("unexpected data structure")
-        }
-      }
-      
-      if(ndims < 3)
-      {
-        vals <- array(vals, 
-                      dim=c(length(lon), 
-                            length(lat), 
-                            length(dt)))
-      }
-      
-      # define dimension names and indices
-      dimnames(vals) <- 
-        list(lon_idx=1:length(lon), 
-             lat_idx=1:length(lat),
-             time_idx=1:length(dt))
-      
-      # convert data array to a data frame
-      dat[[i]] <- as.data.frame.table(vals) %>%
-        mutate(lon_idx=as.integer(lon_idx),
-               lat_idx=as.integer(lat_idx),
-               time_idx=as.integer(time_idx))
-      # retrieve data from lon, lat, and time index
-      dat[[i]] <- dat[[i]] %>%
-        mutate(longitude=lon[lon_idx],
-               latitude=lat[lat_idx],
-               time=dt[time_idx]) %>%
-        select(-c(lon_idx, lat_idx, time_idx)) %>%
-        relocate(Freq, .after=time) %>%
-        # rename variable for clarity
-        rename(!!quo_name(vars[i]) := "Freq")
-    }
-    
-    # close the open netCDF file
-    nc_close(nc_data)
-    
-    # combine data frames for different variables using a full join
-    dat <- dat %>% 
-      reduce(full_join, 
-             by = join_by(longitude, latitude, time))
-    return(dat)
+
+    return(terra::rast(paste0(year, "/data.nc")))
   }
     
   get_cds_points <- function(user, cds.key,
