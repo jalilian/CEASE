@@ -24,7 +24,9 @@ get_cds <- local({
              "skin_temperature", 
              "surface_pressure",
              "total_precipitation", 
-             "volumetric_soil_water_layer_1")
+             "volumetric_soil_water_layer_1",
+             "potential_evaporation",
+             "surface_net_solar_radiation")
   
   get_cds_area <- function(user, cds.key,
                            year, 
