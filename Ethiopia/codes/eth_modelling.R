@@ -21,7 +21,6 @@ eth_map <- eth_map %>%
   ungroup() %>%
   rename(RegionName=ADM1_EN, ZoneName=ADM2_EN)
 
-
 # read the EPHI weekly malaria surveillance data
 eth_data <- 
   readRDS("~/Downloads/Ethiopia/eth_data.rds") %>%
@@ -138,7 +137,44 @@ eth_data <- eth_data %>%
   mutate(E=Total_pop2 * 
            sum(Total_confirmed, na.rm=TRUE) / sum(Total_pop2))
 
+# =========================================================
+#  read invasive species data
+library("readxl")
 
+dat <-
+  read_xlsx("~/Downloads/Ethiopia/MTM_INVASIVE_VECTOR_SPECIES_20240322.xlsx",
+            sheet="Data") %>% 
+  filter(VECTOR_SPECIES_COMPLEX == "An. stephensi") %>%
+  select(LONGITUDE, LATITUDE, YEAR_START) %>%
+  arrange(YEAR_START) %>%
+  st_as_sf(., coords=c("LONGITUDE", "LATITUDE"),
+           crs=st_crs(eth_map))
+
+eth_map <- eth_map %>%
+  mutate(An_stephensi_invasive=NA)
+for (i in 1:nrow(eth_map))
+{
+  yy <- st_filter(dat, eth_map[i, ]) %>% pull(YEAR_START)
+  if (length(yy) > 0)
+  {
+    eth_map$An_stephensi_invasive[i] <- min(yy)
+  }
+}
+
+eth_data <- eth_data %>%
+  mutate(An_stephensi_invasive=0)
+for (i in 1:nrow(eth_map))
+{
+  yy <- st_filter(dat, eth_map[i, ]) %>% pull(YEAR_START)
+  if (length(yy) > 0)
+  {
+    idx <- (eth_data$ZoneName == eth_map$ZoneName[i]) &
+      (eth_data$Year >= min(yy))
+    eth_data$An_stephensi_invasive[idx] <- 1  
+  }
+}
+
+eth_data %>% group_by(ZoneName) %>% count(An_stephensi_invasive)
 # =========================================================
 
 library("INLA")
