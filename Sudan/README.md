@@ -14,7 +14,7 @@ The current version of the shapefile consists of
 
 To access map and population data of administrative divisions in Ethiopia in ```R```, simply run the following command:
 ```R
-eth_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Ethiopia/ETH_Admin_2021_OCHA.rds"))
+sdn_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Sudan/sdn_map.rds"))
 ```
 
 ![Administrative divisions of Ethiopia](/Ethiopia/images/eth_map.png)
