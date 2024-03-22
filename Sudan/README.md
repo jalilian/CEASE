@@ -26,3 +26,4 @@ Two woredas are represented in this shapefile because of their contested boundar
 
 Population data are provided by [WorldPop Hub](https://hub.worldpop.org/doi/10.5258/SOTON/WP00682). 
 
+![Population of Ethiopia](/Sudan/images/sdn_pop.png)
