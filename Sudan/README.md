@@ -19,8 +19,6 @@ sdn_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Sudan/sdn_map
 
 ![Administrative divisions of Sudan](/Sudan/images/sdn_map.png)
 
-Two woredas are represented in this shapefile because of their contested boundaries: Dawe Serer (ET042199) in Oromia region and Quarsadula (ET050905) in Somali region.
-
 
 ## Population data
 
