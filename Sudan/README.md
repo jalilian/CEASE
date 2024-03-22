@@ -17,7 +17,7 @@ To access map and population data of administrative divisions in Ethiopia in ```
 sdn_map <- readRDS(url("https://github.com/jalilian/CEASE/raw/main/Sudan/sdn_map.rds"))
 ```
 
-![Administrative divisions of Ethiopia](/Ethiopia/images/eth_map.png)
+![Administrative divisions of Sudan](/Ethiopia/images/sdn_map.png)
 
 Two woredas are represented in this shapefile because of their contested boundaries: Dawe Serer (ET042199) in Oromia region and Quarsadula (ET050905) in Somali region.
 
