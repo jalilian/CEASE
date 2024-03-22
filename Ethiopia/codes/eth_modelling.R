@@ -10,11 +10,17 @@ eth_map <-
 
 # merge Woreds in each zone
 eth_map <- eth_map %>%
+  mutate(ADM2_EN=
+           case_match(ADM2_EN,
+                      "East Bale" ~ "Bale",
+                      "Dire Dawa rural" ~ "Dire Dawa urban",
+                      .default=ADM2_EN)) %>%
   group_by(ADM1_EN, ADM2_EN) %>%
   summarise(geometry=st_union(geometry),
             Total_pop=sum(Total)) %>%
   ungroup() %>%
   rename(RegionName=ADM1_EN, ZoneName=ADM2_EN)
+
 
 # read the EPHI weekly malaria surveillance data
 eth_data <- 
