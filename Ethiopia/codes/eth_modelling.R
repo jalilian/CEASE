@@ -150,17 +150,6 @@ dat <-
   st_as_sf(., coords=c("LONGITUDE", "LATITUDE"),
            crs=st_crs(eth_map))
 
-eth_map <- eth_map %>%
-  mutate(An_stephensi_invasive=NA)
-for (i in 1:nrow(eth_map))
-{
-  yy <- st_filter(dat, eth_map[i, ]) %>% pull(YEAR_START)
-  if (length(yy) > 0)
-  {
-    eth_map$An_stephensi_invasive[i] <- min(yy)
-  }
-}
-
 eth_data <- eth_data %>%
   mutate(An_stephensi_invasive=0)
 for (i in 1:nrow(eth_map))
@@ -175,6 +164,9 @@ for (i in 1:nrow(eth_map))
 }
 
 eth_data %>% group_by(ZoneName) %>% count(An_stephensi_invasive)
+
+rm(dat, spat_covars, spat_temp_covars, i, idx, yy)
+
 # =========================================================
 
 library("INLA")
@@ -392,6 +384,7 @@ fit <- inla(
     land_cover_7 + land_cover_8 + land_cover_10 +
     elevation_mean + elevation_sd + elevation_min + elevation_max +
     # random spatial and temporal effects
+    f(An_stephensi_invasive + 1, An_stephensi_invasive, model="iid") + 
     f(idx_week, model="rw1") +
     f(Epidemic_Week, model="rw2", 
       scale.model=TRUE, constr=TRUE, cyclic=TRUE, 
