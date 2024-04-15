@@ -151,7 +151,7 @@ dat <-
            crs=st_crs(eth_map))
 
 eth_data <- eth_data %>%
-  mutate(An_stephensi_invasive=0)
+  mutate(An_stephensi_invasive=0L)
 for (i in 1:nrow(eth_map))
 {
   yy <- st_filter(dat, eth_map[i, ]) %>% pull(YEAR_START)
@@ -159,7 +159,7 @@ for (i in 1:nrow(eth_map))
   {
     idx <- (eth_data$ZoneName == eth_map$ZoneName[i]) &
       (eth_data$Year >= min(yy))
-    eth_data$An_stephensi_invasive[idx] <- 1  
+    eth_data$An_stephensi_invasive[idx] <- 1L  
   }
 }
 
@@ -224,7 +224,7 @@ seasplot <- function(fit)
   names(reffect) <- c("ID", "mean", "sd", 
                       "q0.025", "q0.5", "q0.975", 
                       "mode", "kld")
-  reffect$idx_zone <- rep(1:92, each=53)
+  reffect$idx_zone <- rep(1:length(eth_map$ZoneName), each=53)
   reffect$ZoneName <- factor(rep(eth_map$ZoneName, each=53))
   ggplot(data=reffect, 
          mapping=aes(x=ID, y=mean)) +
@@ -367,6 +367,7 @@ nb2INLA("map.graph", tmp)
 H <- inla.read.graph(filename="map.graph")
 image(inla.graph2matrix(H), xlab="", ylab="")
 
+
 fit <- inla(
   Total_confirmed ~ 
     # fixed covariate effects
@@ -384,29 +385,41 @@ fit <- inla(
     land_cover_7 + land_cover_8 + land_cover_10 +
     elevation_mean + elevation_sd + elevation_min + elevation_max +
     # random spatial and temporal effects
-    f(An_stephensi_invasive + 1, An_stephensi_invasive, model="iid") + 
+    #f(An_stephensi_invasive + 1, An_stephensi_invasive, model="iid") +
+    f(An_stephensi_invasive, model="iid") +
     f(idx_week, model="rw1") +
-    f(Epidemic_Week, model="rw2", 
-      scale.model=TRUE, constr=TRUE, cyclic=TRUE, 
-      group=idx_zone) + #, 
+    f(Epidemic_Week, model="rw2", scale.model=TRUE, constr=TRUE, 
+      cyclic=TRUE, group=idx_zone) + #, 
       #control.group=list(model="besag", graph=H, scale.model=TRUE,
       #                   adjust.for.con.comp=TRUE)),
-    #f(idx_zone, model="iid"),
-    f(idx_zone, model="bym2", graph=H, scale.model=TRUE,
-      adjust.for.con.comp=TRUE, constr=TRUE),
-  data=eth_data, E=Total_pop,
+   # f(idx_zone, model="iid"),
+    f(idx_zone, model="bym", 
+      graph=H, scale.model=TRUE, adjust.for.con.comp=TRUE, 
+      constr=TRUE),
+  data=eth_data, E=Total_pop2,
   family = "nbinomial",
   control.family = list(variant=0),
+  control.fixed=list(mean=0, prec=1e-06, correlation.matrix=TRUE),
   control.predictor=list(compute=TRUE, link=1),
   control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
                        return.marginals.predictor=TRUE),
-  num.threads=4, verbose=TRUE, keep=FALSE
+  control.inla = list(strategy = "laplace", npoints = 27, 
+                      int.strategy = "ccd", diff.logdens = 3),
+  num.threads=2, verbose=TRUE, keep=FALSE
   )
 
 printmodel(fit)
 pitfun(fit)
 
 fit$summary.hyperpar
+
+fit$summary.hyperpar[c(2:4, 6:7), ] %>%
+  mutate(component=rownames(.)) %>%
+  ggplot(aes(y=component, x=mean)) +
+  geom_point() +
+  geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`))
+
+saveRDS(fit, file="~/Downloads/Ethiopia/eth_fit.rds")
 
 trendplot(fit)
 seasplot(fit)
