@@ -168,7 +168,44 @@ eth_data %>% group_by(ZoneName) %>% count(An_stephensi_invasive)
 rm(dat, spat_covars, spat_temp_covars, i, idx, yy)
 
 # =========================================================
+# temporal pattern
+eth_data %>% 
+  group_by(Year, Epidemic_Week) %>% 
+  summarise(Total_confirmed=sum(Total_confirmed)) %>% 
+  mutate(Date=ymd(paste(Year, "01", "01", sep="-")) + 
+           weeks(Epidemic_Week)) %>%
+  ggplot(aes(x=Date, y=Total_confirmed)) +
+  geom_line() +
+  #stat_smooth(se=FALSE) +
+  labs(y="Total number of clinically confirmed malaria cases") +
+  theme_light()
 
+
+# spatial pattern
+eth_map %>%
+  left_join(eth_data %>% 
+              group_by(ZoneName, Year) %>%
+              summarise(Total_confirmed=sum(Total_confirmed)) %>%
+              pivot_wider(names_from=Year, 
+                          values_from=Total_confirmed),
+            by=join_by(ZoneName)) %>% 
+  pivot_longer(cols=`2013`:`2023`, 
+               names_to="Year", 
+               values_to ="Total_confirmed") %>%
+  # account for population changes by considering constant 2.67% population growth rate
+  mutate(Total_pop2=
+           Total_pop * ( (1 - 2.67 / 100)^(2022 - as.numeric(Year)) )) %>%
+  mutate(rate=Total_confirmed / Total_pop2 * 1e4) %>%
+  ggplot(aes(fill=rate)) + 
+  geom_sf() +
+  scale_fill_distiller(name="confirmed", palette = "Reds", direction=1)+
+  facet_wrap(~Year, ncol=4) +
+  theme_light() +
+  theme(legend.position='bottom',
+        legend.key.width = unit(3, 'cm'))
+
+
+# =========================================================
 library("INLA")
 
 ###
@@ -211,7 +248,7 @@ trendplot <- function(fit)
                color = "red") +
     geom_line(col='blue', linewidth=1.1) + 
     geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25) +
-    xlab('date') + ylab('random effect representing overall long-term trend') +
+    xlab('') + ylab('random effect representing overall long-term trend') +
     #labs(title = NULL, subtitle = NULL, caption = NULL) + 
     #scale_x_date(date_breaks = "12 month" , date_labels = "%b-%Y") + 
     theme(axis.text.x = element_text(angle = 0, hjust = 1)) +
@@ -233,7 +270,7 @@ seasplot <- function(fit)
     geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25) +
     xlab('epidemic week') + 
     ylab('random effect representing recurring seasonal patterns') +
-    theme_light() + facet_wrap(~ ZoneName, ncol=8)
+    theme_light() + facet_wrap(~ ZoneName, ncol=9)
 }
 
 seasplot2 <- function(fit)
@@ -417,7 +454,9 @@ fit$summary.hyperpar[c(2:4, 6:7), ] %>%
   mutate(component=rownames(.)) %>%
   ggplot(aes(y=component, x=mean)) +
   geom_point() +
-  geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`))
+  geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`)) +
+  labs(y="precision of random effects", x="") +
+  theme_light()
 
 saveRDS(fit, file="~/Downloads/Ethiopia/eth_fit.rds")
 
@@ -441,9 +480,6 @@ fit$summary.fixed %>%
   geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`)) +
   theme_light()
 
-aa <- lapply(fit$marginals.fixed, function(a){ 
-  inla.zmarginal(inla.tmarginal(exp, a, method = "quantile"))
-})
 
 aa <- lapply(fit$marginals.fixed, function(a){
   #inla.emarginal(exp, a)
@@ -484,7 +520,7 @@ g2 <- v %>% group_by(Year, Epidemic_Week, idx_week) %>%
   geom_line(col='blue', linewidth=1.1) + 
   geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`), 
               alpha=0.25) +
-  labs(x="date", y="estimated risk of malaria per 10,000 population") +
+  labs(x="", y="estimated risk of malaria per 10,000 population") +
   theme_light()
 
 ggarrange(g1, g2, ncol=1)
@@ -503,7 +539,7 @@ v %>% group_by(Epidemic_Week, ZoneName) %>%
   geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`), 
               alpha=0.25) +
   labs(x='epidemic week', y='estimated risk of malaria per 10,000 population') +
-  theme_light() + facet_wrap(~ ZoneName, ncol=6)
+  theme_light() + facet_wrap(~ ZoneName, ncol=9)
 
 
 g1 <- eth_map %>% 
@@ -547,7 +583,7 @@ for (i in 1:nrow(eth_data))
 {
   yhat[i, ] <- 
     inla.rmarginal(nsim, 
-                  fit$marginals.fitted.values[[i]]) * eth_data$Total_pop[i]
+                  fit$marginals.fitted.values[[i]]) * eth_data$Total_pop2[i]
 }
 # explained variance
 varfit <- apply(yhat, 2, var)
