@@ -453,8 +453,49 @@ pitfun(fit)
 
 fit$summary.hyperpar
 
+# variance components
+do.call(rbind.data.frame, 
+        lapply(fit$marginals.hyperpar[c(2:4, 6:7)], 
+               function(v){
+                 c(inla.zmarginal(inla.tmarginal(
+                   function(o){ -log( (o + 0.5 +.Machine$double.eps)) }, v,
+                   n = 10 * 2048L,),
+                   silent=TRUE)[c(1, 3, 7)])
+                 })) %>%
+  mutate(component=rownames(.)) %>%
+  mutate(component=
+           case_match(component,
+                      "Precision for An_stephensi_invasive" ~ 
+                        "\u03b8: invasive species",
+                      "Precision for idx_week" ~ 
+                        "\u03C4: temporal trend",
+                      "Precision for Epidemic_Week" ~ 
+                        "s: zone-specific seasonality",
+                      "Precision for idx_zone (iid component)" ~ 
+                        "\u03be: spatial (iid component)",
+                      "Precision for idx_zone (spatial component)" ~ 
+                        "\u03be: spatial (structured component)")) %>%
+  as_tibble() %>%
+  ggplot(aes(y=component, x=mean)) +
+  geom_point() +
+  geom_errorbar(aes(xmin=`quant0.025`, xmax=`quant0.975`)) +
+  labs(y="logarithm of variance of random effects", x="") +
+  theme_light()
+
 fit$summary.hyperpar[c(2:4, 6:7), ] %>%
   mutate(component=rownames(.)) %>%
+  mutate(component=
+           case_match(component,
+                      "Precision for An_stephensi_invasive" ~ 
+                        "Precision for \u0398",
+                      "Precision for idx_week" ~ 
+                        "Precision for \u03c4",
+                      "Precision for Epidemic_Week" ~ 
+                        "Precision for s",
+                      "Precision for idx_zone (iid component)" ~ 
+                        "Precision for \u03be (iid component)",
+                      "Precision for idx_zone (spatial component)" ~ 
+                        "Precision for \u03be (spatial component)")) %>%
   ggplot(aes(y=component, x=mean)) +
   geom_point() +
   geom_errorbar(aes(xmin=`0.025quant`, xmax=`0.975quant`)) +
@@ -580,7 +621,7 @@ ggarrange(g1, g2, nrow=1, legend="bottom")
 # Gelman, A., Goodrich, B., Gabry, J., & Vehtari, A. (2019). 
 # R-squared for Bayesian regression models. The American Statistician.
 
-R2fun <- function(fit, nsim=1000)
+R2fun <- function(fit, nsim=5000)
 {
   yhat <- matrix(NA, nrow=nrow(eth_data), ncol=nsim)
   for (i in 1:nrow(eth_data))
@@ -609,11 +650,12 @@ R2fun <- function(fit, nsim=1000)
   return(R2)
 }
 
-R2 <- R2fun(fit0)
+R2 <- R2fun(fit)
 ggplot(data.frame(R2), aes(x=R2)) + 
-  geom_histogram() +
+  geom_histogram(aes(y = after_stat(count / sum(count)))) +
   geom_vline(xintercept = mean(R2), col="blue", 
              linetype="dashed", linewidth=1.25) +
+  labs(x=expression(R^{2}), y="probability density") + 
   theme_light()
 
 mean(R2)
