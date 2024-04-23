@@ -80,7 +80,7 @@ spat_temp_covars <- spat_temp_covars %>%
          Epidemic_Week=epi_week)
 
 # scale covariates
-if (FALSE)
+if (TRUE)
 {
   scale2 <- function(x)
   {
@@ -168,42 +168,45 @@ eth_data %>% group_by(ZoneName) %>% count(An_stephensi_invasive)
 rm(dat, spat_covars, spat_temp_covars, i, idx, yy)
 
 # =========================================================
-# temporal pattern
-eth_data %>% 
-  group_by(Year, Epidemic_Week) %>% 
-  summarise(Total_confirmed=sum(Total_confirmed)) %>% 
-  mutate(Date=ymd(paste(Year, "01", "01", sep="-")) + 
-           weeks(Epidemic_Week)) %>%
-  ggplot(aes(x=Date, y=Total_confirmed)) +
-  geom_line() +
-  #stat_smooth(se=FALSE) +
-  labs(y="Total number of clinically confirmed malaria cases") +
-  theme_light()
-
-
-# spatial pattern
-eth_map %>%
-  left_join(eth_data %>% 
-              group_by(ZoneName, Year) %>%
-              summarise(Total_confirmed=sum(Total_confirmed)) %>%
-              pivot_wider(names_from=Year, 
-                          values_from=Total_confirmed),
-            by=join_by(ZoneName)) %>% 
-  pivot_longer(cols=`2013`:`2023`, 
-               names_to="Year", 
-               values_to ="Total_confirmed") %>%
-  # account for population changes by considering constant 2.67% population growth rate
-  mutate(Total_pop2=
-           Total_pop * ( (1 - 2.67 / 100)^(2022 - as.numeric(Year)) )) %>%
-  mutate(rate=Total_confirmed / Total_pop2 * 1e4) %>%
-  ggplot(aes(fill=rate)) + 
-  geom_sf() +
-  scale_fill_distiller(name="confirmed", palette = "Reds", direction=1)+
-  facet_wrap(~Year, ncol=4) +
-  theme_light() +
-  theme(legend.position='bottom',
-        legend.key.width = unit(3, 'cm'))
-
+# plots
+if (FALSE)
+{
+  # temporal pattern
+  eth_data %>% 
+    group_by(Year, Epidemic_Week) %>% 
+    summarise(Total_confirmed=sum(Total_confirmed)) %>% 
+    mutate(Date=ymd(paste(Year, "01", "01", sep="-")) + 
+             weeks(Epidemic_Week)) %>%
+    ggplot(aes(x=Date, y=Total_confirmed)) +
+    geom_line() +
+    #stat_smooth(se=FALSE) +
+    labs(y="Total number of clinically confirmed malaria cases") +
+    theme_light()
+  
+  
+  # spatial pattern
+  eth_map %>%
+    left_join(eth_data %>% 
+                group_by(ZoneName, Year) %>%
+                summarise(Total_confirmed=sum(Total_confirmed)) %>%
+                pivot_wider(names_from=Year, 
+                            values_from=Total_confirmed),
+              by=join_by(ZoneName)) %>% 
+    pivot_longer(cols=`2013`:`2023`, 
+                 names_to="Year", 
+                 values_to ="Total_confirmed") %>%
+    # account for population changes by considering constant 2.67% population growth rate
+    mutate(Total_pop2=
+             Total_pop * ( (1 - 2.67 / 100)^(2022 - as.numeric(Year)) )) %>%
+    mutate(rate=Total_confirmed / Total_pop2 * 1e4) %>%
+    ggplot(aes(fill=rate)) + 
+    geom_sf() +
+    scale_fill_distiller(name="confirmed", palette = "Reds", direction=1)+
+    facet_wrap(~Year, ncol=4) +
+    theme_light() +
+    theme(legend.position='bottom',
+          legend.key.width = unit(3, 'cm'))
+}
 
 # =========================================================
 library("INLA")
@@ -576,31 +579,37 @@ ggarrange(g1, g2, nrow=1, legend="bottom")
 # Bayesian R2
 # Gelman, A., Goodrich, B., Gabry, J., & Vehtari, A. (2019). 
 # R-squared for Bayesian regression models. The American Statistician.
-nsim <- 1000
 
-yhat <- matrix(NA, nrow=nrow(eth_data), ncol=nsim)
-for (i in 1:nrow(eth_data))
+R2fun <- function(fit, nsim=1000)
 {
-  yhat[i, ] <- 
+  yhat <- matrix(NA, nrow=nrow(eth_data), ncol=nsim)
+  for (i in 1:nrow(eth_data))
+  {
+    yhat[i, ] <- 
+      inla.rmarginal(nsim, 
+                     fit$marginals.fitted.values[[i]]) * 
+      eth_data$Total_pop2[i]
+  }
+  # explained variance
+  varfit <- apply(yhat, 2, var)
+  size <- 
     inla.rmarginal(nsim, 
-                  fit$marginals.fitted.values[[i]]) * eth_data$Total_pop2[i]
+                   fit$marginals.hyperpar$`size for the nbinomial observations (1/overdispersion)`)
+  # size <- rep(fit$summary.hyperpar$mean[1], nsim)
+  # residual variance
+  sigma2 <- matrix(NA, nrow=nrow(eth_data), ncol=nsim)
+  for (j in 1:nsim)
+  {
+    # negative binomial model
+    sigma2[, j] <- yhat[, j] * (1 + yhat[, j] / size[j])
+  }
+  varres <- apply(sigma2, 2, mean)
+  
+  R2 <- varfit / (varfit + varres)
+  return(R2)
 }
-# explained variance
-varfit <- apply(yhat, 2, var)
-size <- 
-  inla.rmarginal(nsim, 
-                 fit$marginals.hyperpar$`size for the nbinomial observations (1/overdispersion)`)
-# size <- rep(fit$summary.hyperpar$mean[1], nsim)
-# residual variance
-sigma2 <- matrix(NA, nrow=nrow(eth_data), ncol=nsim)
-for (j in 1:nsim)
-{
-  # negative binomial model
-  sigma2[, j] <- yhat[, j] * (1 + yhat[, j] / size[j])
-}
-varres <- apply(sigma2, 2, mean)
 
-R2 <- varfit / (varfit + varres)
+R2 <- R2fun(fit0)
 ggplot(data.frame(R2), aes(x=R2)) + 
   geom_histogram() +
   geom_vline(xintercept = mean(R2), col="blue", 
@@ -608,7 +617,3 @@ ggplot(data.frame(R2), aes(x=R2)) +
   theme_light()
 
 mean(R2)
-
-
-mean(apply(yhat, 1, var))
-mean(apply(sigma2, 1, mean))
