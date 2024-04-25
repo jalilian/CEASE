@@ -168,9 +168,22 @@ eth_data %>% group_by(ZoneName) %>% count(An_stephensi_invasive)
 rm(dat, spat_covars, spat_temp_covars, i, idx, yy)
 
 # =========================================================
-# plots
 if (FALSE)
 {
+  # tables
+  smfun <- function(a)
+  {
+    matrix(c(mean(a), sd(a), min(a), 
+             quantile(a, c(0.25, 0.5, 0.75)), max(a)),
+           nrow=1)
+  }
+  eth_data %>% group_by(Year) %>%
+    summarise(aa=smfun(Total_confirmed)) %>%
+    print.data.frame()
+  eth_data %>% group_by(RegionName) %>%
+    summarise(aa=smfun(Total_confirmed)) %>%
+    print.data.frame() 
+  # plots
   # temporal pattern
   eth_data %>% 
     group_by(Year, Epidemic_Week) %>% 
@@ -251,8 +264,8 @@ trendplot <- function(fit)
                color = "red") +
     geom_line(col='blue', linewidth=1.1) + 
     geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25) +
-    xlab('') + ylab('random effect representing overall long-term trend') +
-    #labs(title = NULL, subtitle = NULL, caption = NULL) + 
+    labs(x="", 
+         y=expression(random~effect~tau[t]~representing~overall~long-term~trend)) +
     #scale_x_date(date_breaks = "12 month" , date_labels = "%b-%Y") + 
     theme(axis.text.x = element_text(angle = 0, hjust = 1)) +
     theme_light()
@@ -272,7 +285,7 @@ seasplot <- function(fit)
     geom_line(col="blue") + 
     geom_ribbon(aes(ymin=q0.025, ymax=q0.975), alpha=0.25) +
     xlab('epidemic week') + 
-    ylab('random effect representing recurring seasonal patterns') +
+    ylab(expression(random~effect~s[it]~representing~recurring~seasonal~patterns)) +
     theme_light() + facet_wrap(~ ZoneName, ncol=9)
 }
 
@@ -555,16 +568,16 @@ v$ZoneName <- eth_data$ZoneName
 
 g1 <- trendplot(fit)
 g2 <- v %>% group_by(Year, Epidemic_Week, idx_week) %>% 
-  summarise(mean=mean(mean),
-            `0.025quant`=mean(`0.025quant`),
-            `0.975quant`=mean(`0.975quant`)) %>%
+  summarise(mean=sum(mean),
+            `0.025quant`=sum(`0.025quant`),
+            `0.975quant`=sum(`0.975quant`)) %>%
   mutate(date=as.Date(paste(Year, "01", "01", sep="-")) %m+% 
            weeks(Epidemic_Week) - 1) %>%
   ggplot(aes(x=date, y=mean)) + 
   geom_line(col='blue', linewidth=1.1) + 
   geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`), 
               alpha=0.25) +
-  labs(x="", y="estimated risk of malaria per 10,000 population") +
+  labs(x="", y=expression(aggregated~risk~theta[t]~per~10000~population)) +
   theme_light()
 
 ggarrange(g1, g2, ncol=1)
@@ -582,7 +595,8 @@ v %>% group_by(Epidemic_Week, ZoneName) %>%
   geom_line(col='blue') + 
   geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`), 
               alpha=0.25) +
-  labs(x='epidemic week', y='estimated risk of malaria per 10,000 population') +
+  labs(x='epidemic week', 
+       y=expression(risk~of~malaria~theta[it]~per~10000~population)) +
   theme_light() + facet_wrap(~ ZoneName, ncol=9)
 
 
@@ -616,7 +630,30 @@ g2 <- eth_map %>% left_join(
 
 ggarrange(g1, g2, nrow=1, legend="bottom")
 
-
+# cluster analysis
+zn <- eth_map$ZoneName
+u <- fit$summary.random$Epidemic_Week[, 2:7]
+u$ZoneName <- factor(rep(zn, each=53))
+dd <- matrix(0, nrow=length(zn), ncol=length(zn))
+for (i in 2:90)
+{
+  for (j in 1:(i- 1))
+  {
+    dd[i, j] <- sum((u[u$ZoneName == zn[i], -7] - u[u$ZoneName == zn[j], -7])^2)
+    dd[j, i] <- dd[i, j]
+  }
+}
+colnames(dd) <- rownames(dd) <- zn
+hc <- hclust(as.dist(dd))
+plot(hc)
+library("dendextend")
+hc1 <- as.dendrogram(hc)
+hc1 <- color_branches(hc1, k=4)
+hc1 <- color_labels(hc1, k=4)
+par(mar=c(7.5, 2, 0, 0))
+plot(hc1)
+#library(ggdendro)
+#ggdendrogram(hc, rotate = FALSE, size = 2)
 # Bayesian R2
 # Gelman, A., Goodrich, B., Gabry, J., & Vehtari, A. (2019). 
 # R-squared for Bayesian regression models. The American Statistician.
