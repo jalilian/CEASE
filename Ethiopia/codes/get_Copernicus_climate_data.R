@@ -314,6 +314,8 @@ get_cds <- local({
       else
         stop("numeric vector of length 4 is required")
     }, matrix={
+      if (ncol(what) != 2)
+        stop("a matrix of coordinates with two columns (Long, Lat) is required")
       get_cds_points(user=user, cds.key=cds.key, 
                      year=year, month=month, 
                      day=day, time=time,
