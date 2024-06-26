@@ -421,7 +421,7 @@ H <- inla.read.graph(filename="map.graph")
 image(inla.graph2matrix(H), xlab="", ylab="")
 
 
-fit <- inla(
+fit0 <- inla(
   Total_confirmed ~ 
     # fixed covariate effects
     u10_mean + u10_sd + u10_min + u10_max + 
@@ -646,27 +646,29 @@ for (i in 2:90)
 colnames(dd) <- rownames(dd) <- zn
 hc <- hclust(as.dist(dd))
 plot(hc)
-library("dendextend")
-hc1 <- as.dendrogram(hc)
-hc1 <- color_branches(hc1, k=4)
-hc1 <- color_labels(hc1, k=4)
-par(mar=c(7.5, 2, 0, 0))
-plot(hc1)
+
+hcc <- cutree(hc, k=4)
+eth_map %>% 
+  left_join(data.frame(ZoneName=names(hcc), cluster=factor(unname(hcc)))) %>%
+  ggplot(aes(fill=cluster)) + geom_sf() +
+  theme_light()
+
+
 #library(ggdendro)
 #ggdendrogram(hc, rotate = FALSE, size = 2)
 # Bayesian R2
 # Gelman, A., Goodrich, B., Gabry, J., & Vehtari, A. (2019). 
 # R-squared for Bayesian regression models. The American Statistician.
 
-R2fun <- function(fit, nsim=5000)
+R2fun <- function(fit, fit0=NULL, nsim=5000)
 {
-  yhat <- matrix(NA, nrow=nrow(eth_data), ncol=nsim)
-  for (i in 1:nrow(eth_data))
+  n <- nrow(fit$.args$data)
+  E <- fit$.args$E
+  yhat <- matrix(NA, nrow=n, ncol=nsim)
+  for (i in 1:n)
   {
     yhat[i, ] <- 
-      inla.rmarginal(nsim, 
-                     fit$marginals.fitted.values[[i]]) * 
-      eth_data$Total_pop2[i]
+      inla.rmarginal(nsim, fit$marginals.fitted.values[[i]]) * E[i]
   }
   # explained variance
   varfit <- apply(yhat, 2, var)
@@ -684,10 +686,22 @@ R2fun <- function(fit, nsim=5000)
   varres <- apply(sigma2, 2, mean)
   
   R2 <- varfit / (varfit + varres)
+  if (!is.null(fit0))
+  {
+    yhat0 <- matrix(NA, nrow=n, ncol=nsim)
+    for (i in 1:n)
+    {
+      yhat0[i, ] <- 
+        inla.rmarginal(nsim, fit0$marginals.fitted.values[[i]]) * E[i]
+    }
+    varrand <- apply(yhat - yhat0, 2, var)
+    R2partial <- varrand / (varrand + varres)
+    attr(R2, "R2partial") <- R2partial
+  }
   return(R2)
 }
 
-R2 <- R2fun(fit)
+R2 <- R2fun(fit, fit0)
 ggplot(data.frame(R2), aes(x=R2)) + 
   geom_histogram(aes(y = after_stat(count / sum(count)))) +
   geom_vline(xintercept = mean(R2), col="blue", 
@@ -696,3 +710,4 @@ ggplot(data.frame(R2), aes(x=R2)) +
   theme_light()
 
 mean(R2)
+summary(attr(R2, "R2partial"))
