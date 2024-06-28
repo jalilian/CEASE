@@ -74,8 +74,10 @@ get_covars <- local({
       "categorical"
     ),
     population_density=c(
-      "gpw-v4-population-density-rev11_2020_30_sec_tif.zip",
-      "gpw_v4_population_density_rev11_2020_30_sec.tif",
+      "gpw-v4-population-density-adjusted-to-2015-unwpp-country-totals-rev11_2020_30_sec_tif.zip",
+      "gpw_v4_population_density_adjusted_to_2015_unwpp_country_totals_rev11_2020_30_sec.tif",
+      #"gpw-v4-population-density-rev11_2020_30_sec_tif.zip",
+      #"gpw_v4_population_density_rev11_2020_30_sec.tif",
       "numeric"
     ),
     elevation=c(
