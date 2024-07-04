@@ -467,7 +467,7 @@ pitfun(fit)
 fit$summary.hyperpar
 
 # variance components
-do.call(rbind.data.frame, 
+g1 <- do.call(rbind.data.frame, 
         lapply(fit$marginals.hyperpar[c(2:4, 6:7)], 
                function(v){
                  c(inla.zmarginal(inla.tmarginal(
@@ -492,8 +492,9 @@ do.call(rbind.data.frame,
   ggplot(aes(y=component, x=mean)) +
   geom_point() +
   geom_errorbar(aes(xmin=`quant0.025`, xmax=`quant0.975`)) +
-  labs(y="logarithm of variance of random effects", x="") +
-  theme_light()
+  labs(y="considered random effects in the model", x="logarithm of variance") +
+  theme_light() 
+
 
 fit$summary.hyperpar[c(2:4, 6:7), ] %>%
   mutate(component=rownames(.)) %>%
@@ -547,7 +548,7 @@ aa <- lapply(fit$marginals.fixed, function(a){
 
 bb <- round(matrix(unlist(aa), ncol=7, byrow=TRUE)[, c(1, 3, 7)], 3)
 rownames(bb) <- names(aa)
-bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
+g2 <- bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
   filter(term != "(Intercept)") %>%
   filter(V2 > 1 | V3 < 1) %>%
   ggplot(aes(x=V1, y=term)) +
@@ -556,8 +557,14 @@ bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
   geom_point() + 
   geom_errorbar(aes(xmin=V2, xmax=V3)) +
   labs(x="relative risk", y="environmental variables with sifnificant effect") +
-  theme_light()
+  theme_light() + 
+  scale_y_discrete(  position = "right") 
 
+library("ggpubr")
+library("devEMF")
+emf(file="~/Fig6.emf", width=9, height=4.5)
+ggarrange(g1, g2, labels=c("A", "B"),  nrow=1, ncol=2)
+dev.off()
 
 
 v <- 10000 * fit$summary.fitted.values
@@ -607,8 +614,8 @@ g1 <- eth_map %>%
             by=join_by(idx_zone)) %>%
   ggplot(aes(fill=mean)) + 
   geom_sf() +
-  scale_fill_gradient2(name="spatial random effect", 
-                       low='green', 
+  scale_fill_gradient2(name="magnitude and sign of the spatial random effect", 
+                       low='blue', 
                        mid='white', 
                        high='red', 
                        midpoint = 0,
@@ -624,11 +631,13 @@ g2 <- eth_map %>% left_join(
 ) %>%
   ggplot(aes(fill=mean)) + 
   geom_sf() +
-  scale_fill_distiller(name="risk per 10,000 population", 
+  scale_fill_distiller(name="malaria risk per 10,000 population", 
                        palette = "Reds", direction=1)+
   theme_light()
 
+emf(file="~/Fig5.emf", width=9, height=4.15)
 ggarrange(g1, g2, nrow=1, legend="bottom")
+dev.off()
 
 # cluster analysis
 zn <- eth_map$ZoneName
@@ -652,6 +661,20 @@ eth_map %>%
   left_join(data.frame(ZoneName=names(hcc), cluster=factor(unname(hcc)))) %>%
   ggplot(aes(fill=cluster)) + geom_sf() +
   theme_light()
+
+# clusters by risk
+eth_data %>% 
+  mutate(risk=fit$summary.fitted.values$mean * 1e4,
+         risk0.025=fit$summary.fitted.values$`0.025quant` * 1e4,
+         risk0.975=fit$summary.fitted.values$`0.975quant` * 1e4) %>%
+  group_by(ZoneName) %>% 
+  summarise(risk=mean(risk), 
+            risk0.025=mean(risk0.025), 
+            risk0.975=mean(risk0.975)) %>%
+  ungroup() %>%
+  left_join(data.frame(ZoneName=names(hcc), cluster=factor(unname(hcc)))) %>%
+  group_by(cluster) %>% 
+  summarise(mean(risk), mean(risk0.025), mean(risk0.975))
 
 
 #library(ggdendro)
