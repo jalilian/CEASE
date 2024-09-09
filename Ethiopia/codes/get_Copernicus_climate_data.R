@@ -15,6 +15,7 @@ get_cds <- local({
   library("ecmwfr")
   library("ncdf4")
   library("ncdf4.helpers")
+  library("CFtime")
   
   # climate variables 
   cvars <- c("10m_u_component_of_wind", 
@@ -28,7 +29,7 @@ get_cds <- local({
              "potential_evaporation",
              "surface_net_solar_radiation")
   
-  get_cds_area <- function(user, cds.key,
+  get_cds_area <- function(key, user,
                            year, 
                            month=sprintf("%02d", 1:12),
                            day=sprintf("%02d", 1:31), 
@@ -37,7 +38,7 @@ get_cds <- local({
                            temp_dir=NULL)
   {
     # set secret ECMWF token
-    wf_set_key(user=user, key=cds.key)
+    wf_set_key(user=user, key=key)
     
     # create a temporary directory to extract the downloaded file
     if (is.null(temp_dir))
@@ -88,16 +89,20 @@ get_cds <- local({
           overwrite=TRUE)
     
     # open netCDF file containing the data
-    nc_data <- nc_open(paste0(year, "/data.nc"))
+    nc_data <- nc_open(paste0(year, "/data_0.nc"))
     
     # extract longitude
     lon <- ncvar_get(nc_data, "longitude")
     # extract latitude
     lat <- ncvar_get(nc_data, "latitude")
     # extract date and time
-    dt <- nc.get.time.series(nc_data)
+    dt <- as_timestamp(CFtime(nc_data$dim$valid_time$units, 
+                              nc_data$dim$valid_time$calendar, 
+                              nc_data$dim$valid_time$vals))
+    #dt <- nc.get.time.series(nc_data)
     # list of names of data variables
-    vars <- nc.get.variable.list(nc_data)
+    vars <- names(nc_data$var)[-(1:2)]
+    #vars <- nc.get.variable.list(nc_data)[-1]
     
     # convert nc data to an R data.frame
     dat <- vector("list", length=length(vars))
@@ -160,7 +165,7 @@ get_cds <- local({
     return(dat)
   }
   
-  get_cds_area_rast <- function(user, cds.key,
+  get_cds_area_rast <- function(key, user,
                                 year, 
                                 month=sprintf("%02d", 1:12),
                                 day=sprintf("%02d", 1:31), 
@@ -169,7 +174,7 @@ get_cds <- local({
                                 temp_dir=NULL)
   {
     # set secret ECMWF token
-    wf_set_key(user=user, key=cds.key)
+    wf_set_key(user=user, key=key)
     
     # create a temporary directory to extract the downloaded file
     if (is.null(temp_dir))
@@ -219,10 +224,10 @@ get_cds <- local({
           exdir=paste0(year, "/"), 
           overwrite=TRUE)
 
-    return(terra::rast(paste0(year, "/data.nc")))
+    return(terra::rast(paste0(year, "/data_0.nc")))
   }
     
-  get_cds_points <- function(user, cds.key,
+  get_cds_points <- function(key, user,
                              year,
                              month=sprintf("%02d", 1:12),
                              day=sprintf("%02d", 1:31),
@@ -238,7 +243,7 @@ get_cds <- local({
     area <- c(max(y1) + 0.2, min(x1) - 0.2, 
               min(y1) - 0.2, max(x1) + 0.2)
     
-    cds_dat <- get_cds_area(user=user, cds.key=cds.key, 
+    cds_dat <- get_cds_area(key=key, user=user, 
                             year=year, month=month, 
                             day=day, time=time,
                             area=area, temp_dir=temp_dir)
@@ -268,7 +273,7 @@ get_cds <- local({
     return(out)
   }
   
-  get_cds_map <- function(user, cds.key,
+  get_cds_map <- function(key, user="ecmwfr",
                           year,
                           month=sprintf("%02d", 1:12),
                           day=sprintf("%02d", 1:31),
@@ -281,7 +286,7 @@ get_cds <- local({
     #         North, West, South, East
     area <- c(area[4], area[1:3])
     
-    cds_dat <- get_cds_area(user=user, cds.key=cds.key, 
+    cds_dat <- get_cds_area(key=key, user=user, 
                             year=year, month=month, 
                             day=day, time=time,
                             area=area, temp_dir=temp_dir)
@@ -297,7 +302,7 @@ get_cds <- local({
     return(cds_dat)
   }
   
-  get_cds_data <- function(user, cds.key,
+  get_cds_data <- function(key, user="ecmwfr",
                            year, 
                            month=sprintf("%02d", 1:12),
                            day=sprintf("%02d", 1:31), 
@@ -307,7 +312,7 @@ get_cds <- local({
   {
     switch(class(what)[1], numeric={
       if (length(what) == 4)
-        get_cds_area(user=user, cds.key=cds.key, 
+        get_cds_area(key=key, user=user, 
                      year=year, month=month, 
                      day=day, time=time,
                      area=what, temp_dir=temp_dir)
@@ -316,12 +321,12 @@ get_cds <- local({
     }, matrix={
       if (ncol(what) != 2)
         stop("a matrix of coordinates with two columns (Long, Lat) is required")
-      get_cds_points(user=user, cds.key=cds.key, 
+      get_cds_points(key=key, user=user, 
                      year=year, month=month, 
                      day=day, time=time,
                      coords=what, temp_dir=temp_dir)
     }, sf={
-      get_cds_map(user=user, cds.key=cds.key, 
+      get_cds_map(key=key, user=user, 
                   year=year, month=month, 
                   day=day, time=time,
                   map=what, temp_dir=temp_dir)
@@ -333,17 +338,17 @@ get_cds <- local({
 if (FALSE)
 {
   # user credentials for ECMWF data access
-  user <- "****************"
-  cds.key <- "********************************"
+  user <- "ecmwfr"
+  key <- "********************************"
   
   #      North, West, South, East
   area <- c(10, 30, 5, 35)
-  a1 <- get_cds(user, cds.key, year=2020, month=8, what=area)
+  a1 <- get_cds(key, user, year=2020, month=8, what=area)
   
   coords <- cbind(seq(30, 35, l=5), 
         seq(5, 10, l=5))
-  a2 <- get_cds(user, cds.key, year=2020, month=8, what=coords)
+  a2 <- get_cds(key, user, year=2020, month=8, what=coords)
   
   area <- c(9.2, -79.9, 9.1, -79.8)
-  a3 <- get_cds(user, cds.key, year=2020, month=8, what=area)
+  a3 <- get_cds(key, user, year=2020, month=8, what=area)
 }
