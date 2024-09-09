@@ -37,7 +37,7 @@ get_cds <- local({
                            temp_dir=NULL)
   {
     # set secret ECMWF token
-    wf_set_key(user=user, key=cds.key)
+    wf_set_key(key=cds.key)
     
     # create a temporary directory to extract the downloaded file
     if (is.null(temp_dir))
@@ -169,7 +169,7 @@ get_cds <- local({
                                 temp_dir=NULL)
   {
     # set secret ECMWF token
-    wf_set_key(user=user, key=cds.key)
+    wf_set_key(key=cds.key)
     
     # create a temporary directory to extract the downloaded file
     if (is.null(temp_dir))
