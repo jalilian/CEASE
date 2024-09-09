@@ -2,6 +2,7 @@
 # =========================================================
 # European Centre for Medium-Range Weather Forecasts (ECMWF) 
 # Copernicus's Climate Data Store (CDS)
+# Updated for the new API
 # https://cds.climate.copernicus.eu
 # DOI: 10.24381/cds.e2161bac
 
@@ -14,7 +15,6 @@ get_cds <- local({
   library("tidyverse")
   library("ecmwfr")
   library("ncdf4")
-  library("ncdf4.helpers")
   library("CFtime")
   
   # climate variables 
@@ -99,11 +99,9 @@ get_cds <- local({
     dt <- as_timestamp(CFtime(nc_data$dim$valid_time$units, 
                               nc_data$dim$valid_time$calendar, 
                               nc_data$dim$valid_time$vals))
-    #dt <- nc.get.time.series(nc_data)
     # list of names of data variables
     vars <- names(nc_data$var)[-(1:2)]
-    #vars <- nc.get.variable.list(nc_data)[-1]
-    
+
     # convert nc data to an R data.frame
     dat <- vector("list", length=length(vars))
     for (i in 1:length(vars))
@@ -345,8 +343,7 @@ if (FALSE)
   area <- c(10, 30, 5, 35)
   a1 <- get_cds(key, user, year=2020, month=8, what=area)
   
-  coords <- cbind(seq(30, 35, l=5), 
-        seq(5, 10, l=5))
+  coords <- cbind(seq(30, 35, l=5), seq(5, 10, l=5))
   a2 <- get_cds(key, user, year=2020, month=8, what=coords)
   
   area <- c(9.2, -79.9, 9.1, -79.8)
