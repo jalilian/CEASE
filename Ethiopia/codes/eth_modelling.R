@@ -177,6 +177,7 @@ if (FALSE)
              quantile(a, c(0.25, 0.5, 0.75)), max(a)),
            nrow=1)
   }
+  
   eth_data %>% group_by(Year) %>%
     summarise(aa=smfun(Total_confirmed)) %>%
     print.data.frame()
@@ -184,7 +185,10 @@ if (FALSE)
     summarise(aa=smfun(Total_confirmed)) %>%
     print.data.frame() 
   # plots
+  
+  # Fig 1
   # temporal pattern
+  tiff("~/Fig1.tiff", width=3 * 950, height=3 * 400, res=300)
   eth_data %>% 
     group_by(Year, Epidemic_Week) %>% 
     summarise(Total_confirmed=sum(Total_confirmed)) %>% 
@@ -195,9 +199,12 @@ if (FALSE)
     #stat_smooth(se=FALSE) +
     labs(y="Total number of clinically confirmed malaria cases") +
     theme_light()
+  dev.off()
   
   
+  # Fig 2
   # spatial pattern
+  tiff("~/Fig2.tiff", width=3 * 950, height=3 * 700, res=300)
   eth_map %>%
     left_join(eth_data %>% 
                 group_by(ZoneName, Year) %>%
@@ -214,11 +221,13 @@ if (FALSE)
     mutate(rate=Total_confirmed / Total_pop2 * 1e4) %>%
     ggplot(aes(fill=rate)) + 
     geom_sf() +
-    scale_fill_distiller(name="confirmed", palette = "Reds", direction=1)+
+    scale_fill_distiller(name="Rate per 10,000 population", 
+                         palette = "Reds", direction=1)+
     facet_wrap(~Year, ncol=4) +
     theme_light() +
     theme(legend.position='bottom',
           legend.key.width = unit(3, 'cm'))
+  dev.off()
 }
 
 # =========================================================
@@ -464,6 +473,8 @@ fit0 <- inla(
 printmodel(fit)
 pitfun(fit)
 
+saveRDS(fit, file="~/Downloads/Ethiopia/eth_fit.rds")
+
 fit$summary.hyperpar
 
 # variance components
@@ -492,7 +503,7 @@ g1 <- do.call(rbind.data.frame,
   ggplot(aes(y=component, x=mean)) +
   geom_point() +
   geom_errorbar(aes(xmin=`quant0.025`, xmax=`quant0.975`)) +
-  labs(y="considered random effects in the model", x="logarithm of variance") +
+  labs(y="Considered random effects in the model", x="logarithm of variance") +
   theme_light() 
 
 
@@ -516,7 +527,6 @@ fit$summary.hyperpar[c(2:4, 6:7), ] %>%
   labs(y="precision of random effects", x="") +
   theme_light()
 
-saveRDS(fit, file="~/Downloads/Ethiopia/eth_fit.rds")
 
 trendplot(fit)
 seasplot(fit)
@@ -556,7 +566,7 @@ g2 <- bb %>% as.data.frame() %>% rownames_to_column(var="term") %>%
              color = "red") +
   geom_point() + 
   geom_errorbar(aes(xmin=V2, xmax=V3)) +
-  labs(x="relative risk", y="environmental variables with sifnificant effect") +
+  labs(x="relative risk", y="Environmental variables with sifnificant effect") +
   theme_light() + 
   scale_y_discrete(  position = "right") 
 
@@ -566,6 +576,10 @@ emf(file="~/Fig6.emf", width=9, height=4.5)
 ggarrange(g1, g2, labels=c("A", "B"),  nrow=1, ncol=2)
 dev.off()
 
+# Fig 6
+tiff("~/Fig6.tiff", width=3 * 950, height=3 * 400, res=300)
+ggarrange(g1, g2, labels=c("A", "B"),  nrow=1, ncol=2)
+dev.off()
 
 v <- 10000 * fit$summary.fitted.values
 v$Year <- eth_data$Year
@@ -581,7 +595,7 @@ g2 <- v %>% group_by(Year, Epidemic_Week, idx_week) %>%
   mutate(date=as.Date(paste(Year, "01", "01", sep="-")) %m+% 
            weeks(Epidemic_Week) - 1) %>%
   ggplot(aes(x=date, y=mean)) + 
-  geom_line(col='blue', linewidth=1.1) + 
+  geom_line(col='blue', linewidth=1.05) + 
   geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`), 
               alpha=0.25) +
   labs(x="", y=expression(aggregated~risk~theta[t]~per~10000~population)) +
@@ -589,6 +603,10 @@ g2 <- v %>% group_by(Year, Epidemic_Week, idx_week) %>%
 
 ggarrange(g1, g2, ncol=1)
 
+# Fig 3
+tiff("~/Fig3.tiff", width=3 * 950, height=3 * 400, res=300)
+g2
+dev.off()
 
 v %>% group_by(Epidemic_Week) %>% summarise(a=mean(mean)) %>%
   ggplot(aes(x=Epidemic_Week, y=a)) + geom_line()
@@ -614,7 +632,7 @@ g1 <- eth_map %>%
             by=join_by(idx_zone)) %>%
   ggplot(aes(fill=mean)) + 
   geom_sf() +
-  scale_fill_gradient2(name="magnitude and sign of the spatial random effect", 
+  scale_fill_gradient2(name="Magnitude and sign of the spatial random effect", 
                        low='blue', 
                        mid='white', 
                        high='red', 
@@ -631,11 +649,16 @@ g2 <- eth_map %>% left_join(
 ) %>%
   ggplot(aes(fill=mean)) + 
   geom_sf() +
-  scale_fill_distiller(name="malaria risk per 10,000 population", 
+  scale_fill_distiller(name="Malaria risk per 10,000 population", 
                        palette = "Reds", direction=1)+
   theme_light()
 
+# Fig 5
 emf(file="~/Fig5.emf", width=9, height=4.15)
+ggarrange(g1, g2, nrow=1, legend="bottom")
+dev.off()
+
+tiff("~/Fig5.tiff", width=3 * 950, height=3 * 450, res=300)
 ggarrange(g1, g2, nrow=1, legend="bottom")
 dev.off()
 
@@ -657,10 +680,14 @@ hc <- hclust(as.dist(dd))
 plot(hc)
 
 hcc <- cutree(hc, k=4)
+
+# Fig 4
+tiff("~/Fig4.tiff", width=3 * 950, height=3 * 675, res=300)
 eth_map %>% 
   left_join(data.frame(ZoneName=names(hcc), cluster=factor(unname(hcc)))) %>%
   ggplot(aes(fill=cluster)) + geom_sf() +
   theme_light()
+dev.off()
 
 # clusters by risk
 eth_data %>% 
