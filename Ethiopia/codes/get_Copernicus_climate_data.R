@@ -163,6 +163,66 @@ get_cds <- local({
     return(dat)
   }
   
+  get_cds_area2 <- function(key, user,
+                           year, 
+                           month=sprintf("%02d", 1:12),
+                           day=sprintf("%02d", 1:31), 
+                           time="12:00",
+                           area, 
+                           temp_dir=NULL)
+  {
+    # set secret ECMWF token
+    wf_set_key(user=user, key=key)
+    
+    # create a temporary directory to extract the downloaded file
+    if (is.null(temp_dir))
+      temp_dir <- tempdir()
+    if (!dir.exists(temp_dir))
+    {
+      dir.create(temp_dir)
+    }
+    dfile <- paste0("cds_hourly_", year, ".grib")
+    
+    # set the working directory to the temporary directory
+    setwd(temp_dir)
+    
+    # request for getting land data
+    request <- list(
+      # dataset name
+      dataset_short_name = "reanalysis-era5-land",
+      # climate variables 
+      variable = cvars,
+      # temporal framework: year, month, day, hour
+      year = as.character(year),
+      month = as.character(month),
+      day = as.character(day),
+      time = as.character(time),
+      # geographical region
+      #      North, West, South, East
+      area = area,
+      # output file format
+      format = "grib", 
+      # output file name
+      target = dfile
+    )
+    
+    # check the validity of a data request and login credentials
+    wf_check_request(request=request)
+    
+    # download the data request
+    wf_request(user=user, 
+               request=request,
+               transfer=TRUE, 
+               path=getwd(),
+               # waiting time for download to start
+               time_out=3 * 60 * 60,
+               verbose=TRUE)
+    
+    # open netCDF file containing the data
+    rdata <- terra::rast(dfile)
+    return(rdata)
+  }
+  
   get_cds_area_rast <- function(key, user,
                                 year, 
                                 month=sprintf("%02d", 1:12),
