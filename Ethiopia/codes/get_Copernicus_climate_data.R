@@ -146,7 +146,7 @@ get_cds <- local({
     library("sf")
     area <- st_bbox(map)
     #         North, West, South, East
-    area <- area[c(4, 1:3)]
+    area <- unname(area[c(4, 1:3)])
     
     cds_dat <- get_cds_area(key=key, user=user, 
                             year=year, month=month, 
@@ -164,6 +164,7 @@ get_cds <- local({
     st_join(cds_dat, 
             map, 
             join=st_within) %>%
+      select(1:ncol(cds_dat)) %>%
       na.omit()
   }
   
