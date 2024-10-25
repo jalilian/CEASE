@@ -66,7 +66,6 @@ library("devEMF")
 ggsave(filename="Fig1.emf", device=emf, width=10, height=8)
 
 
-
 # modelling the data using ITS
 d1 <- data.frame(date=batu$date, y=batu$rate, t=1:nrow(batu)) %>%
   mutate(z=as.numeric(date >= as.Date("2022-08-13")), 
@@ -83,6 +82,31 @@ d3 <- data.frame(date=mata$date, y=mata$rate, t=1:nrow(mata))%>%
          s=pmax(0, t - max(which(z == 0))),
          tidx=t,
          sidx=mata$Epidemic_Week)
+
+
+library("trend")
+# non-parametric Cox and Stuart trend test
+# tests trend change in the first third of observations with the last third of observations
+cs.test(log(d1$y))
+cs.test(log(d2$y))
+cs.test(log(d3$y))
+
+# change point detection
+library("changepoint")
+cpt.mean(log(d1$y), method="PELT")
+d1$date[183]
+cpt.mean(log(d2$y), method="PELT")
+d2$date[c(28, 88, 139)]
+cpt.mean(log(d3$y), method="PELT")
+d3$date[134]
+
+library("strucchange")
+bp1 <- breakpoints(log(y) ~ t, data=d1, h=0.2)
+d1$date[bp1$breakpoints]
+bp2 <- breakpoints(log(y) ~ t, data=d2, h=0.2)
+d2$date[bp2$breakpoints]
+bp3 <- breakpoints(log(y) ~ t, data=d3, h=0.2)
+d3$date[bp3$breakpoints]
 
 
 library("INLA")
