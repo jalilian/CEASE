@@ -682,10 +682,17 @@ plot(hc)
 hcc <- cutree(hc, k=4)
 
 # Fig 4
-tiff("~/Fig4.tiff", width=3 * 950, height=3 * 675, res=300)
+tiff("~/Fig4.tiff", width=3 * 975, height=3 * 675, res=300)
 eth_map %>% 
-  left_join(data.frame(ZoneName=names(hcc), cluster=factor(unname(hcc)))) %>%
-  ggplot(aes(fill=cluster)) + geom_sf() +
+  left_join(data.frame(ZoneName=names(hcc), 
+                       cluster=factor(paste("cluster", unname(hcc))))) %>%
+  ggplot(aes(fill=cluster)) + 
+  geom_sf() +
+  geom_sf_text(aes(label=ZoneName), 
+               position = position_jitter(width=0.2, height=0.2), 
+               size=2, angle=0, fontface = "bold") +
+  #geom_sf_label(aes(label=ZoneName), show.legend=FALSE, alpha = 0.5) +
+  labs(x="", y="", fill="Zone clusters") +
   theme_light()
 dev.off()
 

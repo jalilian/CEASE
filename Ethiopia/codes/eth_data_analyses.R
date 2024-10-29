@@ -18,6 +18,11 @@ eth_map <-
 
 # merge Woreds in each zone
 eth_map <- eth_map %>%
+  mutate(ADM2_EN=
+           case_match(ADM2_EN,
+                      "East Bale" ~ "Bale",
+                      "Dire Dawa rural" ~ "Dire Dawa urban",
+                      .default=ADM2_EN)) %>%
   group_by(ADM1_EN, ADM2_EN) %>%
   summarise(geometry=st_union(geometry),
             Total_pop=sum(Total)) %>%
@@ -27,38 +32,43 @@ eth_map <- eth_map %>%
 # missing data patterns
 
 tmp <- expand_grid(
-  eth_map %>% pull(ZoneName),
+  ZoneName=eth_map %>% pull(ZoneName),
   eth_data %>% 
     count(Year, Epidemic_Week) %>% select(-n)
-) %>% 
-  rename(ZoneName=`eth_map %>% pull(ZoneName)`)
-
-tmp <- tmp %>% mutate(missing=1)
-for (i in 1:nrow(tmp))
-{
-  if (nrow(eth_data %>% 
-           filter(ZoneName == tmp$ZoneName[i],
-                  Year == tmp$Year[i],
-                  Epidemic_Week == tmp$Epidemic_Week[i])))
-  {
-    tmp$missing[i] <- 0
-  }
-}
+  )
 
 # number of missing zones by date
+tmp <- tmp %>%
+  left_join(
+    eth_data %>% 
+      select(ZoneName, Year, Epidemic_Week) %>%
+      mutate(missing=0),
+    by = c("ZoneName", "Year", "Epidemic_Week")
+  ) %>%
+  mutate(missing = if_else(is.na(missing), 1, 0))
+
+# by year
+tmp %>%
+  group_by(Year) %>%
+  summarise(n=100 * mean(missing))
+
+# by Zone
+tmp %>%
+  group_by(ZoneName) %>%
+  summarise(n=100 * mean(missing))
+
 tmp1 <- tmp %>% 
   mutate(Date=ymd(paste(Year, "01", "01", sep="-")) + 
            weeks(Epidemic_Week)) %>%
   group_by(Date) %>% 
-  summarise(n=sum(missing))
+  summarise(n=100 * mean(missing))
 
-tmp1 %>%
-  ggplot(aes(x=Date, y=n / 92 * 100)) + 
+g1 <- tmp1 %>%
+  ggplot(aes(x=Date, y=n)) + 
   geom_line() +
   stat_smooth(se=FALSE) +
   labs(x="date", y="percentage of weekly missing zones") +
   theme_light()
-
 
 library("tseries")
 # the augmented Dickey-Fuller (ADF) test for stationarity (unit root)
@@ -69,17 +79,33 @@ kpss.test(tmp1 %>% pull(n))
 # number of missing weeks by zone
 tmp2 <- tmp %>% 
   group_by(ZoneName, Year) %>% 
-  summarise(n=sum(missing)) %>%
-  ungroup() %>%
-  mutate(m=tmp %>% count(ZoneName, Year) %>% pull(n)) %>%
-  mutate(miss = 100 * n / m) %>% 
-  select(-c(n, m))
+  summarise(n=100 * mean(missing)) %>%
+  ungroup()
+
+
+g2 <- eth_map %>% 
+  left_join(tmp2 %>% 
+              group_by(ZoneName) %>%
+              summarise(n=mean(n)), 
+            by=join_by(ZoneName)) %>%
+  ggplot(aes(fill= n)) + 
+  geom_sf() +
+  scale_fill_distiller(name="missing", 
+                       labels=scales::percent,
+                       palette = "Reds", direction=1)+
+  theme_light() +
+  theme(legend.position='bottom')
+
+library("ggpubr")
+library("devEMF")
+ggarrange(g1, g2, nrow=1)
+ggsave(filename="Missing.emf", device=emf, width=15, height=7)
 
 tmp2 <- eth_map %>% 
   left_join(tmp2, by=join_by(ZoneName))
 
 tmp2 %>%
-  ggplot(aes(fill= miss)) + 
+  ggplot(aes(fill= n)) + 
   geom_sf() +
   scale_fill_distiller(name="missing", 
                        labels=scales::percent,
@@ -96,13 +122,14 @@ library("spdep")
 W <- nb2listw(poly2nb(
   tmp2 %>% 
     group_by(ZoneName) %>% 
-    summarise(miss=sum(miss))
+    summarise(miss=mean(miss))
 ))
+
 
 moran.test(
   tmp2 %>% 
     group_by(ZoneName) %>% 
-    summarise(miss=sum(miss)) %>% pull(miss),
+    summarise(miss=mean(miss)) %>% pull(miss),
   listw = W)
 
 # by Year

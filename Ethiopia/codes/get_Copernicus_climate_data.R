@@ -140,7 +140,8 @@ get_cds <- local({
                           month=sprintf("%02d", 1:12),
                           day=sprintf("%02d", 1:31),
                           time="12:00",
-                          map,
+                          map, 
+                          raster=FALSE,
                           temp_dir=NULL)
   {
     library("sf")
@@ -152,20 +153,24 @@ get_cds <- local({
                             year=year, month=month, 
                             day=day, time=time,
                             area=area, temp_dir=temp_dir)
-    
-    coords <- xyFromCell(cds_dat, 1:ncell(cds_dat))
-    cds_dat <- extrfromrast(cds_dat, xyFromCell(cds_dat, 1:ncell(cds_dat)))
-    
-    cds_dat <- st_as_sf(cds_dat, 
-                        coords=c("longitude", "latitude"),
-                        crs=st_crs(map))
-    
-    # conduct a spatial join to determine points inside specific map regions
-    st_join(cds_dat, 
-            map, 
-            join=st_within) %>%
-      select(1:ncol(cds_dat)) %>%
-      na.omit()
+    if (raster)
+    {
+      terra::crop(cds_dat, map)
+    } else{
+      coords <- xyFromCell(cds_dat, 1:ncell(cds_dat))
+      cds_dat <- extrfromrast(cds_dat, xyFromCell(cds_dat, 1:ncell(cds_dat)))
+      
+      cds_dat <- st_as_sf(cds_dat, 
+                          coords=c("longitude", "latitude"),
+                          crs=st_crs(map))
+      
+      # conduct a spatial join to determine points inside specific map regions
+      st_join(cds_dat, 
+              map, 
+              join=st_within) %>%
+        select(1:ncol(cds_dat)) %>%
+        na.omit()
+    }
   }
   
   get_cds_data <- function(key, user="ecmwfr",
@@ -174,6 +179,7 @@ get_cds <- local({
                            day=sprintf("%02d", 1:31), 
                            time="12:00",
                            what,
+                           raster=FALSE,
                            temp_dir=NULL)
   {
     switch(class(what)[1], numeric={
@@ -195,7 +201,8 @@ get_cds <- local({
       get_cds_map(key=key, user=user, 
                   year=year, month=month, 
                   day=day, time=time,
-                  map=what, temp_dir=temp_dir)
+                  map=what, raster=raster, 
+                  temp_dir=temp_dir)
     })
   }
   
