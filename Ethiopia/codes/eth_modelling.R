@@ -534,6 +534,9 @@ spatialplot(fit, what="random_effect")
 spatialplot(fit, what="random_effect_exp")
 spatialplot(fit, what="linear_predictor")
 spatialplot(fit, what="linear_predictor_exp")
+library("devEMF")
+ggsave(filename="Fig4_supp.emf", device=emf, width=10, height=8)
+
 
 fit$summary.fixed %>%
   rownames_to_column(var="term") %>%
@@ -632,6 +635,7 @@ g1 <- eth_map %>%
             by=join_by(idx_zone)) %>%
   ggplot(aes(fill=mean)) + 
   geom_sf() +
+  annotation_north_arrow(location = "tr") +
   scale_fill_gradient2(name="Magnitude and sign of the spatial random effect", 
                        low='blue', 
                        mid='white', 
@@ -649,6 +653,7 @@ g2 <- eth_map %>% left_join(
 ) %>%
   ggplot(aes(fill=mean)) + 
   geom_sf() +
+  annotation_north_arrow(location = "tr") +
   scale_fill_distiller(name="Malaria risk per 10,000 population", 
                        palette = "Reds", direction=1)+
   theme_light()
@@ -681,19 +686,21 @@ plot(hc)
 
 hcc <- cutree(hc, k=4)
 
+library("ggspatial")
 # Fig 4
 tiff("~/Fig4.tiff", width=3 * 975, height=3 * 675, res=300)
-eth_map %>% 
+g0 <- eth_map %>% 
   left_join(data.frame(ZoneName=names(hcc), 
                        cluster=factor(paste("cluster", unname(hcc))))) %>%
   ggplot(aes(fill=cluster)) + 
   geom_sf() +
-  geom_sf_text(aes(label=ZoneName), 
-               position = position_jitter(width=0.2, height=0.2), 
-               size=2, angle=0, fontface = "bold") +
-  #geom_sf_label(aes(label=ZoneName), show.legend=FALSE, alpha = 0.5) +
+  annotation_north_arrow(location = "tr") +
+  #geom_sf_text(aes(label=ZoneName), 
+  #             position = position_jitter(width=0.2, height=0.2), 
+  #             size=2, angle=0, fontface = "bold") +
   labs(x="", y="", fill="Zone clusters") +
   theme_light()
+g0
 dev.off()
 
 # clusters by risk
@@ -710,6 +717,67 @@ eth_data %>%
   group_by(cluster) %>% 
   summarise(mean(risk), mean(risk0.025), mean(risk0.975))
 
+
+g1 <- u %>% 
+  mutate(Epidemic_Week=rep(1:53, 90)) %>%
+  filter(ZoneName %in% names(hcc[hcc == 1])) %>%
+  ggplot(aes(x=Epidemic_Week, y=mean, group=ZoneName)) +
+  geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`),
+              alpha=0.2, col=NA, fill="blue") +
+  geom_line(col="navy", alpha=0.5) +
+  geom_hline(aes(yintercept = 0), col="red", linetype="dashed") +
+  labs(x="epidemic week", y="seasonal effect") +
+  theme_light()
+
+g2 <-  u %>% 
+  mutate(Epidemic_Week=rep(1:53, 90)) %>%
+  filter(ZoneName %in% names(hcc[hcc == 2])) %>%
+  ggplot(aes(x=Epidemic_Week, y=mean, group=ZoneName)) +
+  geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`),
+              alpha=0.2, col=NA, fill="blue") +
+  geom_line(col="navy", alpha=0.5) +
+  geom_hline(aes(yintercept = 0), col="red", linetype="dashed") +
+  labs(x="epidemic week", y="seasonal effect") +
+  theme_light()
+
+g3 <-  u %>% 
+  mutate(Epidemic_Week=rep(1:53, 90)) %>%
+  filter(ZoneName %in% names(hcc[hcc == 3])) %>%
+  ggplot(aes(x=Epidemic_Week, y=mean, group=ZoneName)) +
+  geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`),
+              alpha=0.2, col=NA, fill="blue") +
+  geom_line(col="navy", alpha=0.5) +
+  geom_hline(aes(yintercept = 0), col="red", linetype="dashed") +
+  labs(x="epidemic week", y="seasonal effect") +
+  theme_light()
+
+g4 <-  u %>% 
+  mutate(Epidemic_Week=rep(1:53, 90)) %>%
+  filter(ZoneName %in% names(hcc[hcc == 4])) %>%
+  ggplot(aes(x=Epidemic_Week, y=mean, group=ZoneName)) +
+  geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`),
+              alpha=0.2, col=NA, fill="blue") +
+  geom_line(col="navy", alpha=0.5) +
+  geom_hline(aes(yintercept = 0), col="red", linetype="dashed") +
+  labs(x="epidemic week", y="seasonal effect") +
+  theme_light()
+
+ggarrange(g1, g2, g3, g4, ncol=2, nrow=2,
+          labels=paste("Cluster", 1:4), label.x=0.05)
+
+emf(file="~/Fig4.emf", width=7, height=8.5)
+ggarrange(g0, 
+  ggarrange(g1 + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank()), 
+            g2 + theme(axis.title.y=element_blank()) +
+              theme(axis.title.x=element_blank(),
+                    axis.text.x=element_blank()), 
+            g3, 
+            g4 + theme(axis.title.y=element_blank()), 
+            ncol=2, nrow=2,
+            labels=paste("Cluster", 1:4), label.x=0.05), 
+  ncol=1, nrow=2)
+dev.off()
 
 #library(ggdendro)
 #ggdendrogram(hc, rotate = FALSE, size = 2)
