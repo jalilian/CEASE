@@ -188,24 +188,23 @@ if (FALSE)
   
   # Fig 1
   # temporal pattern
-  tiff("~/Fig1.tiff", width=3 * 950, height=3 * 400, res=300)
-  eth_data %>% 
+  g1 <- eth_data %>% 
     group_by(Year, Epidemic_Week) %>% 
     summarise(Total_confirmed=sum(Total_confirmed)) %>% 
     mutate(Date=ymd(paste(Year, "01", "01", sep="-")) + 
              weeks(Epidemic_Week)) %>%
     ggplot(aes(x=Date, y=Total_confirmed)) +
     geom_line() +
+    scale_x_date(NULL, date_labels = "%b %Y", breaks = "year") +
     #stat_smooth(se=FALSE) +
-    labs(y="Total number of clinically confirmed malaria cases") +
+    labs(y="Count of clinical malaria cases") +
     theme_light()
-  dev.off()
   
   
+  library("ggspatial")
   # Fig 2
   # spatial pattern
-  tiff("~/Fig2.tiff", width=3 * 950, height=3 * 700, res=300)
-  eth_map %>%
+  g2 <- eth_map %>%
     left_join(eth_data %>% 
                 group_by(ZoneName, Year) %>%
                 summarise(Total_confirmed=sum(Total_confirmed)) %>%
@@ -224,10 +223,22 @@ if (FALSE)
     scale_fill_distiller(name="Rate per 10,000 population", 
                          palette = "Reds", direction=1)+
     facet_wrap(~Year, ncol=4) +
+    annotation_north_arrow(location = "tr", 
+                           height = unit(0.8, "cm"),
+                           width = unit(0.8, "cm")) +
     theme_light() +
     theme(legend.position='bottom',
-          legend.key.width = unit(3, 'cm'))
-  dev.off()
+          legend.key.width = unit(2, 'cm'),
+          axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())
+  ggarrange(g1, g2, ncol=1, heights=c(1, 2.5))
+  ggsave(filename="Fig1_new.pdf", width=8, height=9)
+  library("devEMF")
+  ggsave(filename="Fig1_new.emf", device=emf, width=9, height=10)
 }
 
 # =========================================================
@@ -430,7 +441,7 @@ H <- inla.read.graph(filename="map.graph")
 image(inla.graph2matrix(H), xlab="", ylab="")
 
 
-fit0 <- inla(
+fit <- inla(
   Total_confirmed ~ 
     # fixed covariate effects
     u10_mean + u10_sd + u10_min + u10_max + 
@@ -836,3 +847,24 @@ ggplot(data.frame(R2), aes(x=R2)) +
 
 mean(R2)
 summary(attr(R2, "R2partial"))
+
+
+library("terra")
+library("geodata")
+library("tidyterra")
+library("ggspatial")
+library("devEMF")
+library("ggpubr")
+
+eth_alt <- elevation_30s(country="ETH", path=tempdir())
+eth_alt_cat <- classify(eth_alt, c(-Inf, 1500, 2400, Inf))
+levels(eth_alt_cat) <- data.frame(ID=0:2, 
+                                  Altitude=c("Kola", "Weyna Dega", "Dega"))
+
+ggplot() +
+  geom_spatraster(data=eth_alt_cat, na.rm=FALSE) + 
+  scale_fill_discrete(na.translate=FALSE) +
+  geom_sf(data=eth_map, fill=NA) +
+  annotation_north_arrow(location = "tr") +
+  theme_light()
+ggsave(filename="~/ETH_altitude.emf", device=emf, width=10, height=8)
