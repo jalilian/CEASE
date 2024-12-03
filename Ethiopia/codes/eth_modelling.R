@@ -195,9 +195,10 @@ if (FALSE)
              weeks(Epidemic_Week)) %>%
     ggplot(aes(x=Date, y=Total_confirmed)) +
     geom_line() +
-    scale_x_date(NULL, date_labels = "%b %Y", breaks = "year") +
+    scale_x_date("Date", date_labels = "%b %Y", breaks = "year") +
+    scale_y_continuous(labels=function(l) ifelse(l <= 9999, l, scales::comma(l))) +
     #stat_smooth(se=FALSE) +
-    labs(y="Count of clinical malaria cases") +
+    labs(y="Total number of clinical malaria cases", x="Date") +
     theme_light()
   
   
@@ -474,7 +475,7 @@ fit <- inla(
   control.family = list(variant=0),
   control.fixed=list(mean=0, prec=1e-06, correlation.matrix=TRUE),
   control.predictor=list(compute=TRUE, link=1),
-  control.compute=list(config=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
+  control.compute=list(cofig=FALSE, waic=TRUE, dic=TRUE, cpo=TRUE,
                        return.marginals.predictor=TRUE),
   control.inla = list(strategy = "laplace", npoints = 27, 
                       int.strategy = "ccd", diff.logdens = 3),
