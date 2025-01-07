@@ -5,10 +5,47 @@ get_modis <-  local({
   library("rstac")
   library("terra")
   
+  # MODIS collections and variables
+  ca <- list(
+    # MODIS Land Surface Temperature/Emissivity 8-Day (1km)
+    "modis-11A2-061" = c(
+      "LST_Day_1km", # 8-day daytime 1km grid Landsurface Temperature
+      "LST_Night_1km" # 8-day nighttime 1km grid Landsurface Temperature
+    ), 
+    # MODIS Gross Primary Productivity 8-Day Gap-Filled (500m)
+    "modis-17A2HGF-061" = c(
+      "Gpp_500m", # Gross Primary Productivity
+      "PsnNet_500m" # Net Photosynthesis
+    ),
+    # MODIS Surface Reflectance 8-Day (500m)
+    "modis-09A1-061" = c(
+      "sur_refl_b07" # Surface Reflectance Band 7 (2105-2155 nm)
+    ),
+    # MODIS Net Evapotranspiration Yearly Gap-Filled (500m)
+    "modis-16A3GF-061" = c(
+      "ET_500m", # Total of Evapotranspiration
+      "LE_500m", # Average of Latent Heat Flux
+      "PET_500m" # Total Potential Evapotranspiration
+    ),
+    # MODIS Leaf Area Index/FPAR 8-Day (500m)
+    "modis-15A2H-061" = c(
+      "Lai_500m", # Leaf Area Index
+      "Fpar_500m" # Fraction of Photosynthetically Active Radiation
+    ),
+    # MODIS Thermal Anomalies/Fire 8-Day (1km)
+    "modis-14A2-061" = c(
+      "FireMask" # Confidence of fire
+    )
+  )
+  
   get_modis_bbox <- function(collections, asset_key,
                              bbox, datetime, crs=NULL, 
+                             aggregate=FALSE,
                              output_dir=tempdir())
   {
+    if (!any(startsWith(collections, c("modis-", "io-lulc"))))
+      stop("Implemented for the modis and io-lulc products")
+    
     # STAC search API
     search_results <- 
       stac("https://planetarycomputer.microsoft.com/api/stac/v1") %>%
@@ -31,19 +68,29 @@ get_modis <-  local({
     items <- items_fetch(search_results)
     # extract asset IDs
     asset_ids <- sapply(items$features, function(x) { x$id })
-    asset_ids <- strsplit(asset_ids, split="\\.")
     
-    # dates
-    dates <- as.Date(sapply(asset_ids, function(x) x[2]), 
-                     format="A%Y%j")
-    # extract year and month
-    dates <- factor(paste(year(dates),  
-                       month(dates, label=FALSE), 
-                       sep="-"))
-    # horizontal tile number, vertical tile number
-    # tiles are 10 degrees by 10 degrees at the equator
-    hv <- factor(sapply(asset_ids, function(x) x[3]))
-
+    # Moderate Resolution Imaging Spectroradiometer (MODIS)
+    if (startsWith(collections, "modis-"))
+    {
+      asset_ids <- strsplit(asset_ids, split="\\.")
+      
+      # dates
+      dates <- as.Date(sapply(asset_ids, function(x) x[2]), 
+                       format="A%Y%j")
+      # horizontal tile number, vertical tile number
+      # tiles are 10 degrees by 10 degrees at the equator
+      hv <- factor(sapply(asset_ids, function(x) x[3]))
+    }
+    
+    # global map of Land Use and Land Cover (LULC) by  Impact Observatory (IO)
+    if (startsWith(collections, "io-lulc"))
+    {
+      asset_ids <- strsplit(asset_ids, split="-")
+      # dates
+      dates <- sapply(asset_ids, function(x) x[2])
+      hv <- factor(sapply(asset_ids, function(x) x[1]))
+    }
+    
     # download items
     download_items <- items %>%
       assets_download(assets_name="map", 
@@ -67,17 +114,25 @@ get_modis <-  local({
     assets <- tibble(hv, dates, asset_links) %>%
       mutate(across(all_of(asset_key), ~ map(.x, rast)))
     
-    assets %>%
-      group_by(hv, dates) %>% 
-      summarize(across(all_of(asset_key), 
-                       ~ list(app(rast(.x), mean, na.rm=TRUE))
-                       ),
-                .groups="drop") %>%
+    assets <- assets %>%
       group_by(dates) %>% 
       summarize(across(all_of(asset_key),
                        ~ list(Reduce(function(x, y) mosaic(x, y, fun="mean"), 
                                      .x))
-                       ))
+                       )) %>%
+      ungroup()
+    if (aggregate)
+    {
+      assets <- assets %>%
+        mutate(dates=factor(paste(year(dates),  month(dates, label=FALSE), 
+                                  sep="-"))) %>%
+            group_by(dates) %>% 
+            summarize(across(all_of(asset_key), 
+                             ~ list(app(rast(.x), mean, na.rm=TRUE))
+                             ),
+                      .groups="drop")
+    }
+    return(assets)
   }
   
   get_modis_points <- function(collections, asset_key,
@@ -154,12 +209,72 @@ get_modis <-  local({
                     output_dir=output_dir)
     })
   }
+  
+  get_modis_all <- function(collections=names(ca), 
+                            asset_key=unname(ca),
+                            what, crs="EPSG:4326", 
+                            datetime, output_dir=tempdir())
+  {
+    nc <- length(collections)
+    if (nc == 1)
+    {
+      get_modis_data(collections=collections, 
+                     asset_key=asset_key,
+                     what=what, crs=crs, 
+                     datetime=datetime, 
+                     output_dir=output_dir)
+    } else{
+      if (is.list(asset_key) & (length(asset_key) == nc))
+      {
+        mapply(get_modis_data, 
+               collections=collections,
+               asset_key=asset_key,
+               MoreArgs=list(what=what, datetime=datetime),
+               SIMPLIFY=FALSE)
+      } else{
+        stop("collections and asset_keys must have the same length")
+      }
+    }
+  }
 })
 
 if (FALSE)
 {
+  # MODIS Vegetation Indices 16-Day (250m)
+  a1 <- get_modis(collections="modis-13Q1-061", 
+                  asset_key=c("250m_16_days_EVI", # 16 day EVI
+                              "250m_16_days_NDVI" # 16 day NDVI
+                  ), 
+                  what=c(-3.3, 4.7, -3.2, 4.8),
+                  datetime="2024-01-01/2024-03-01")
+  plot(a1$`250m_16_days_EVI`[[1]])
+  
+  
+  a3 <- get_modis(what=c(-3, 2, -2, 3),
+                  datetime="2023-11-01/2024-02-28")
+  
+  a2 <- get_modis(
+    collections=c(
+      # MODIS Land Surface Temperature/Emissivity 8-Day
+      "modis-11A2-061",
+      # MODIS Gross Primary Productivity 8-Day Gap-Filled
+      "modis-17A2HGF-061"
+    ),
+    asset_key=list(
+      c("LST_Day_1km", # 8-day daytime 1km grid Landsurface Temperature
+        "LST_Night_1km" # 8-day nighttime 1km grid Landsurface Temperature
+      ),
+      c("Gpp_500m", #Gross Primary Productivity
+        "PsnNet_500m" # Net Photosynthesis
+      )
+    ),
+    what=c(30, 2, 32, 4),
+    datetime="2023-11-01/2024-02-28"
+  )
+  
+  map <- sf::read_sf("https://geodata.ucdavis.edu/gadm/gadm4.1/kmz/gadm41_GHA_0.kmz")
   # MODIS Land Surface Temperature/Emissivity 8-Day
-  aa <- get_modis(collections="modis-11A2-061", 
+  a2 <- get_modis(collections="modis-11A2-061", 
                   asset_key=c("LST_Day_1km", # 8-day daytime 1km grid Landsurface Temperature
                               "LST_Night_1km" # 8-day nighttime 1km grid Landsurface Temperature
                   ), 
@@ -173,6 +288,7 @@ if (FALSE)
                   ), 
                   what=c(30, 2, 32, 4),
                   datetime="2023-11-01/2024-02-28")
+  
   plot(bb$Gpp_500m[[1]], col = rev(terrain.colors(100)), colNA="grey")
   
   xy <- cbind(runif(100, 30, 32), runif(100, 2, 4))
@@ -197,4 +313,14 @@ if (FALSE)
   plot(dd$Burn_Date[[1]], col=rev(heat.colors(100)), 
        colNA = "black", main="June 2024")
   plot(st_geometry(map), add=TRUE, border="blue")
+  
+  ee <- get_modis(collections="io-lulc-annual-v02", 
+                    asset_key="data", 
+                    what=map[14, ],
+                    datetime=NULL)
+  
+  ff <- get_modis(collections="era5-pds", 
+                  asset_key="geoparquet-items", 
+                  what=c(30, 2, 32, 4),
+                  datetime="2023-11-01/2024-02-28")
 }
