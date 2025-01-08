@@ -334,5 +334,5 @@ if (FALSE)
   a7 <- get_modis(collections="io-lulc-annual-v02", 
                   asset_key="data", 
                   what=map[14, ],
-                  datetime=NULL)
+                  datetime="2023-01-01")
 }
