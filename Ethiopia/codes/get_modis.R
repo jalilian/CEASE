@@ -32,6 +32,11 @@ get_modis <-  local({
       "Lai_500m", # Leaf Area Index
       "Fpar_500m" # Fraction of Photosynthetically Active Radiation
     ),
+    # MODIS Vegetation Indices 16-Day (250m)
+    "modis-13Q1-061" = c(
+      "250m_16_days_EVI", # 16 day EVI
+      "250m_16_days_NDVI" # 16 day NDVI
+    ), 
     # MODIS Thermal Anomalies/Fire 8-Day (1km)
     "modis-14A2-061" = c(
       "FireMask" # Confidence of fire
@@ -333,6 +338,6 @@ if (FALSE)
   
   a7 <- get_modis(collections="io-lulc-annual-v02", 
                   asset_key="data", 
-                  what=map[14, ],
+                  what=c(46, 34, 47, 35),
                   datetime="2023-01-01")
 }
