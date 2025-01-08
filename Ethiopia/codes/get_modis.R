@@ -1,10 +1,9 @@
 
-get_modis <-  local({
-  
-  library("tidyverse")
-  library("rstac")
-  library("terra")
-  
+library("tidyverse")
+library("rstac")
+library("terra")
+
+get_modis <- local({
   # MODIS collections and variables
   ca <- list(
     # MODIS Land Surface Temperature/Emissivity 8-Day (1km)
@@ -43,6 +42,41 @@ get_modis <-  local({
     )
   )
   
+  handel_ids <- function(items)
+  {
+    map2(
+      map(items$features, ~ .x$collection),
+      map(items$features, ~ .x$id),
+      function(collection, id_name) {
+        if (startsWith(collection, "modis-")) 
+        { 
+          # Moderate Resolution Imaging Spectroradiometer (MODIS)
+          # Split by "." and extract date and tile
+          parts <- strsplit(id_name, "\\.")[[1]]
+          # date
+          date <- as.Date(parts[2], format = "A%Y%j")
+          # horizontal tile number, vertical tile number
+          # tiles are 10 degrees by 10 degrees at the equator
+          tile <- parts[3]
+          return(list(date=date, tile=tile))
+        } else if (startsWith(collection, "io-lulc")) 
+        {
+          # Land Use and Land Cover (LULC) by  Impact Observatory (IO)
+          # Split by "-" and extract date and tile
+          parts <- strsplit(id_name, "-")[[1]]
+          # date
+          date <- parts[2]
+          # tile
+          tile <- parts[1]
+          return(list(date=date, tile=tile))
+        } else {
+          stop("Collection type not recognized")
+        }
+      }
+    ) %>% bind_rows()
+    
+  }
+  
   get_modis_bbox <- function(collections, asset_key,
                              bbox, crs="EPSG:4326", 
                              datetime, crop=TRUE, 
@@ -52,9 +86,9 @@ get_modis <-  local({
     if (!any(startsWith(collections, c("modis-", "io-lulc"))))
       stop("Implemented for the modis and io-lulc products")
     
-    # STAC search API
-    search_results <- 
-      stac("https://planetarycomputer.microsoft.com/api/stac/v1") %>%
+    # STAC web service: Microsoft Planetary Computer 
+    items <- stac("https://planetarycomputer.microsoft.com/api/stac/v1") %>%
+      # STAC search API
       stac_search(
         # collection IDs to include in the search for items
         collections = collections,
@@ -68,36 +102,12 @@ get_modis <-  local({
       # HTTP GET requests to STAC web services
       get_request() %>%
       # allow access assets from Microsoft's Planetary Computer
-      items_sign(sign_fn=sign_planetary_computer())
-    
-    # fetch items all STAC Items
-    items <- items_fetch(search_results)
+      items_sign(sign_fn=sign_planetary_computer()) %>%
+      # fetch all STAC Items
+      items_fetch()
+
     # extract asset IDs
-    asset_ids <- map(items$features, ~ .x$id)
-    
-    asset_ids <- sapply(items$features, function(x) { x$id })
-    
-    # Moderate Resolution Imaging Spectroradiometer (MODIS)
-    if (startsWith(collections, "modis-"))
-    {
-      asset_ids <- strsplit(asset_ids, split="\\.")
-      
-      # dates
-      dates <- as.Date(sapply(asset_ids, function(x) x[2]), 
-                       format="A%Y%j")
-      # horizontal tile number, vertical tile number
-      # tiles are 10 degrees by 10 degrees at the equator
-      hv <- factor(sapply(asset_ids, function(x) x[3]))
-    }
-    
-    # global map of Land Use and Land Cover (LULC) by  Impact Observatory (IO)
-    if (startsWith(collections, "io-lulc"))
-    {
-      asset_ids <- strsplit(asset_ids, split="-")
-      # dates
-      dates <- sapply(asset_ids, function(x) x[2])
-      hv <- factor(sapply(asset_ids, function(x) x[1]))
-    }
+    asset_ids <- handel_ids(items)
     
     # download items
     download_items <- items %>%
@@ -119,11 +129,11 @@ get_modis <-  local({
     asset_links <- asset_fun(download_items, asset_key=asset_key)
     
     # create a tibble with raster data
-    assets <- tibble(hv, dates, asset_links) %>%
+    assets <- tibble(asset_ids, asset_links) %>%
       mutate(across(all_of(asset_key), ~ map(.x, rast)))
     
     assets <- assets %>%
-      group_by(dates) %>% 
+      group_by(date) %>% 
       summarize(across(all_of(asset_key),
                        ~ {
                          mos <- Reduce(function(x, y) mosaic(x, y, fun="mean"), 
@@ -132,7 +142,7 @@ get_modis <-  local({
                          if (crop)
                            mos <- terra::crop(mos, ext(bbox, xy=TRUE))
                          list(mos)
-                         }),
+                       }),
                 .groups = "drop")
     
     unlink(output_dir, recursive=TRUE)
@@ -142,13 +152,13 @@ get_modis <-  local({
     if (aggregate)
     {
       assets <- assets %>%
-        mutate(dates=factor(paste(year(dates),  month(dates, label=FALSE), 
+        mutate(date=factor(paste(year(date),  month(date, label=FALSE), 
                                   sep="-"))) %>%
-            group_by(dates) %>% 
-            summarize(across(all_of(asset_key), 
-                             ~ list(app(rast(.x), mean, na.rm=TRUE))
-                             ),
-                      .groups="drop")
+        group_by(date) %>% 
+        summarize(across(all_of(asset_key), 
+                         ~ list(app(rast(.x), mean, na.rm=TRUE))
+        ),
+        .groups="drop")
     }
     return(assets)
   }
@@ -160,13 +170,13 @@ get_modis <-  local({
     coords <- vect(xy, crs=crs)
     bbox <- as.vector(terra::ext(coords))
     bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
-
+    
     get_modis_bbox(collections=collections, 
                    asset_key=asset_key, 
                    bbox=bbox, crs=crs, 
                    datetime=datetime,
                    output_dir=output_dir) %>% 
-    group_by(dates) %>% 
+      group_by(date) %>% 
       summarize(across(all_of(asset_key),
                        ~ lapply(.x, function(o){ 
                          terra::extract(o, coords, ID=FALSE, xy=TRUE)
@@ -179,7 +189,7 @@ get_modis <-  local({
       rename(long = matches("__x$")[1]) %>%
       select(-matches("__y$") | matches("__y$")[1]) %>%
       rename(lat = matches("__y$")[1]) %>%
-      relocate(long, lat, .after=dates)
+      relocate(long, lat, .after=date)
   }
   
   get_modis_map <- function(collections, asset_key,
@@ -196,13 +206,14 @@ get_modis <-  local({
                    bbox=bbox, 
                    datetime=datetime,
                    output_dir=output_dir) %>% 
-      group_by(dates) %>% 
+      group_by(date) %>% 
       summarize(across(all_of(asset_key),
                        ~ lapply(.x, function(o){ 
                          terra::crop(o, cmap)
                        })
       ))
   }
+  
   
   get_modis_data <- function(collections, asset_key,
                              what, crs="EPSG:4326", 
@@ -272,8 +283,8 @@ if (FALSE)
                   what=c(-3, 5, -2, 6),
                   datetime="2024-01-01/2024-03-01")
   par(mfrow=c(1, 2))
-  plot(a1$`250m_16_days_EVI`[[1]], main=as.character(a1$dates[[1]]))
-  plot(a1$`250m_16_days_NDVI`[[1]], main=as.character(a1$dates[[1]]))
+  plot(a1$`250m_16_days_EVI`[[1]], main=as.character(a1$date[[1]]))
+  plot(a1$`250m_16_days_NDVI`[[1]], main=as.character(a1$date[[1]]))
   
   # all selected MODIS variables
   a2 <- get_modis(what=c(-3, 5, -2, 6),
@@ -293,7 +304,7 @@ if (FALSE)
                   what=xy,
                   datetime="2020-01-01/2025-01-01")
   a3
-  a3 %>% count(dates)
+  a3 %>% count(date)
 
   # with map
   map <- sf::read_sf("https://geodata.ucdavis.edu/gadm/gadm4.1/kmz/gadm41_GHA_0.kmz")
@@ -304,8 +315,8 @@ if (FALSE)
                               ),
                   what=map,
                   datetime="2023-12-01/2024-02-01")
-  plot(a4$LST_Day_1km[[1]], main=as.character(a4$dates[[1]]))
-  plot(a4$LST_Night_1km[[1]], main=as.character(a4$dates[[1]]))
+  plot(a4$LST_Day_1km[[1]], main=as.character(a4$date[[1]]))
+  plot(a4$LST_Night_1km[[1]], main=as.character(a4$date[[1]]))
   
   # Land cover 
   a5 <- get_modis(collections="io-lulc-annual-v02", 
@@ -324,16 +335,16 @@ if (FALSE)
                   datetime="2024-06-01/2024-10-30")
   par(mfrow=c(2, 2))
   plot(a6$Burn_Date[[1]], col=rev(heat.colors(100)), 
-       colNA = "black", main=as.character(a6$dates[[1]]))
+       colNA = "black", main=as.character(a6$date[[1]]))
   plot(st_geometry(map), add=TRUE, border="blue")
   plot(a6$Burn_Date[[2]], col=rev(heat.colors(100)), 
-       colNA = "black", main=as.character(a6$dates[[2]]))
+       colNA = "black", main=as.character(a6$date[[2]]))
   plot(st_geometry(map), add=TRUE, border="blue")
   plot(a6$Burn_Date[[3]], col=rev(heat.colors(100)), 
-       colNA = "black", main=as.character(a6$dates[[3]]))
+       colNA = "black", main=as.character(a6$date[[3]]))
   plot(st_geometry(map), add=TRUE, border="blue")
   plot(a6$Burn_Date[[4]], col=rev(heat.colors(100)), 
-       colNA = "black", main=as.character(a6$dates[[4]]))
+       colNA = "black", main=as.character(a6$date[[4]]))
   plot(st_geometry(map), add=TRUE, border="blue")
   
   a7 <- get_modis(collections="io-lulc-annual-v02", 
