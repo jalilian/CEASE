@@ -39,7 +39,8 @@ get_modis <-  local({
   )
   
   get_modis_bbox <- function(collections, asset_key,
-                             bbox, datetime, crs=NULL, 
+                             bbox, crs="EPSG:4326", 
+                             datetime, crop=TRUE, 
                              aggregate=FALSE,
                              output_dir=tempdir())
   {
@@ -52,7 +53,7 @@ get_modis <-  local({
       stac_search(
         # collection IDs to include in the search for items
         collections = collections,
-        # bounding box (xmin, ymin, xmax, ymax)
+        # bounding box (xmin, ymin, xmax, ymax) in  WGS84 longitude/latitude
         bbox = bbox, 
         # date-time range
         datetime = datetime, 
@@ -67,6 +68,8 @@ get_modis <-  local({
     # fetch items all STAC Items
     items <- items_fetch(search_results)
     # extract asset IDs
+    asset_ids <- map(items$features, ~ .x$id)
+    
     asset_ids <- sapply(items$features, function(x) { x$id })
     
     # Moderate Resolution Imaging Spectroradiometer (MODIS)
@@ -117,10 +120,20 @@ get_modis <-  local({
     assets <- assets %>%
       group_by(dates) %>% 
       summarize(across(all_of(asset_key),
-                       ~ list(Reduce(function(x, y) mosaic(x, y, fun="mean"), 
-                                     .x))
-                       )) %>%
-      ungroup()
+                       ~ {
+                         mos <- Reduce(function(x, y) mosaic(x, y, fun="mean"), 
+                                       .x)
+                         mos <- terra::project(mos, crs)
+                         if (crop)
+                           mos <- terra::crop(mos, ext(bbox, xy=TRUE))
+                         list(mos)
+                         }),
+                .groups = "drop")
+    
+    unlink(output_dir, recursive=TRUE)
+    if (output_dir == tempdir())
+      dir.create(tempdir())
+    
     if (aggregate)
     {
       assets <- assets %>%
@@ -143,13 +156,15 @@ get_modis <-  local({
     bbox <- as.vector(terra::ext(coords))
     bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
 
-    get_modis_bbox(collections, asset_key, bbox, datetime,
+    get_modis_bbox(collections=collections, 
+                   asset_key=asset_key, 
+                   bbox=bbox, crs=crs, 
+                   datetime=datetime,
                    output_dir=output_dir) %>% 
     group_by(dates) %>% 
       summarize(across(all_of(asset_key),
                        ~ lapply(.x, function(o){ 
-                         terra::extract(terra::project(o,  crs), 
-                                        coords, ID=FALSE, xy=TRUE)
+                         terra::extract(o, coords, ID=FALSE, xy=TRUE)
                        })
       )) %>%
       unnest(cols=all_of(asset_key), names_sep="__") %>%
@@ -171,12 +186,15 @@ get_modis <-  local({
     bbox <- st_bbox(cmap)
     bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
     
-    
-    get_modis_bbox(collections, asset_key, bbox, datetime,
-                          output_dir=output_dir) %>% group_by(dates) %>% 
+    get_modis_bbox(collections=collections, 
+                   asset_key=asset_key, 
+                   bbox=bbox, 
+                   datetime=datetime,
+                   output_dir=output_dir) %>% 
+      group_by(dates) %>% 
       summarize(across(all_of(asset_key),
                        ~ lapply(.x, function(o){ 
-                         terra::crop(terra::project(o,  crs), cmap)
+                         terra::crop(o, cmap)
                        })
       ))
   }
@@ -240,87 +258,81 @@ get_modis <-  local({
 
 if (FALSE)
 {
+  # with  bounding box 
   # MODIS Vegetation Indices 16-Day (250m)
   a1 <- get_modis(collections="modis-13Q1-061", 
                   asset_key=c("250m_16_days_EVI", # 16 day EVI
                               "250m_16_days_NDVI" # 16 day NDVI
                   ), 
-                  what=c(-3.3, 4.7, -3.2, 4.8),
+                  what=c(-3, 5, -2, 6),
                   datetime="2024-01-01/2024-03-01")
-  plot(a1$`250m_16_days_EVI`[[1]])
+  par(mfrow=c(1, 2))
+  plot(a1$`250m_16_days_EVI`[[1]], main=as.character(a1$dates[[1]]))
+  plot(a1$`250m_16_days_NDVI`[[1]], main=as.character(a1$dates[[1]]))
   
-  
-  a3 <- get_modis(what=c(-3, 2, -2, 3),
+  # all selected MODIS variables
+  a2 <- get_modis(what=c(-3, 5, -2, 6),
                   datetime="2023-11-01/2024-02-28")
   
-  a2 <- get_modis(
-    collections=c(
-      # MODIS Land Surface Temperature/Emissivity 8-Day
-      "modis-11A2-061",
-      # MODIS Gross Primary Productivity 8-Day Gap-Filled
-      "modis-17A2HGF-061"
-    ),
-    asset_key=list(
-      c("LST_Day_1km", # 8-day daytime 1km grid Landsurface Temperature
-        "LST_Night_1km" # 8-day nighttime 1km grid Landsurface Temperature
-      ),
-      c("Gpp_500m", #Gross Primary Productivity
-        "PsnNet_500m" # Net Photosynthesis
-      )
-    ),
-    what=c(30, 2, 32, 4),
-    datetime="2023-11-01/2024-02-28"
-  )
-  
-  map <- sf::read_sf("https://geodata.ucdavis.edu/gadm/gadm4.1/kmz/gadm41_GHA_0.kmz")
-  # MODIS Land Surface Temperature/Emissivity 8-Day
-  a2 <- get_modis(collections="modis-11A2-061", 
-                  asset_key=c("LST_Day_1km", # 8-day daytime 1km grid Landsurface Temperature
-                              "LST_Night_1km" # 8-day nighttime 1km grid Landsurface Temperature
-                  ), 
-                  what=c(30, 2, 32, 4),
-                  datetime="2023-11-01/2024-02-28")
-  
-  # MODIS Gross Primary Productivity 8-Day Gap-Filled
-  bb <- get_modis(collections="modis-17A2HGF-061", 
-                  asset_key=c("Gpp_500m", #Gross Primary Productivity
-                              "PsnNet_500m" # Net Photosynthesis
-                  ), 
-                  what=c(30, 2, 32, 4),
-                  datetime="2023-11-01/2024-02-28")
-  
-  plot(bb$Gpp_500m[[1]], col = rev(terrain.colors(100)), colNA="grey")
-  
-  xy <- cbind(runif(100, 30, 32), runif(100, 2, 4))
+  plot(a2$`modis-14A2-061`$FireMask[[1]])
+  plot(a2$`modis-09A1-061`$sur_refl_b07[[1]])
+
+  # with coordinates
+  xy <- cbind(runif(100, -3, 0), runif(100, 5, 10))
   # MODIS Net Evapotranspiration Yearly Gap-Filled
-  cc <- get_modis(collections="modis-16A3GF-061", 
+  a3 <- get_modis(collections="modis-16A3GF-061", 
                   asset_key=c("ET_500m", # Total of Evapotranspiration
                               "LE_500m", # Average of Latent Heat Flux
                               "PET_500m" # Total Potential Evapotranspiration
                   ),
                   what=xy,
-                  datetime="2023-11-01/2024-02-28")
+                  datetime="2020-01-01/2025-01-01")
+  a3
+  a3 %>% count(dates)
+
+  # with map
+  map <- sf::read_sf("https://geodata.ucdavis.edu/gadm/gadm4.1/kmz/gadm41_GHA_0.kmz")
+  # MODIS Land Surface Temperature/Emissivity 8-Day
+  a4 <- get_modis(collections="modis-11A2-061",
+                  asset_key=c("LST_Day_1km", # 8-day daytime 1km grid Landsurface Temperature
+                              "LST_Night_1km" # 8-day nighttime 1km grid Landsurface Temperature
+                              ),
+                  what=map,
+                  datetime="2023-12-01/2024-02-01")
+  plot(a4$LST_Day_1km[[1]], main=as.character(a4$dates[[1]]))
+  plot(a4$LST_Night_1km[[1]], main=as.character(a4$dates[[1]]))
+  
+  # Land cover 
+  a5 <- get_modis(collections="io-lulc-annual-v02", 
+                  asset_key="data", 
+                  what=c(-3, 5, -2, 6),
+                  datetime=NULL)
+
   
   # MODIS Burned Area Monthly
   map <- sf::read_sf("https://geodata.ucdavis.edu/gadm/gadm4.1/kmz/gadm41_IRN_1.kmz")
-  map <- map[c(14, 18, 10, 12, 17), ]
-  dd <- get_modis(collections="modis-64A1-061",
+  a6 <- get_modis(collections="modis-64A1-061",
                   asset_key = c("Burn_Date", # Burn day of year
                                 "Burn_Date_Uncertainty"# Estimated uncertainty in burn day
                   ),
-                  what=map,
-                  datetime="2024-06-01/2024-09-30")
-  plot(dd$Burn_Date[[1]], col=rev(heat.colors(100)), 
-       colNA = "black", main="June 2024")
+                  what=map[14, ],
+                  datetime="2024-06-01/2024-10-30")
+  par(mfrow=c(2, 2))
+  plot(a6$Burn_Date[[1]], col=rev(heat.colors(100)), 
+       colNA = "black", main=as.character(a6$dates[[1]]))
+  plot(st_geometry(map), add=TRUE, border="blue")
+  plot(a6$Burn_Date[[2]], col=rev(heat.colors(100)), 
+       colNA = "black", main=as.character(a6$dates[[2]]))
+  plot(st_geometry(map), add=TRUE, border="blue")
+  plot(a6$Burn_Date[[3]], col=rev(heat.colors(100)), 
+       colNA = "black", main=as.character(a6$dates[[3]]))
+  plot(st_geometry(map), add=TRUE, border="blue")
+  plot(a6$Burn_Date[[4]], col=rev(heat.colors(100)), 
+       colNA = "black", main=as.character(a6$dates[[4]]))
   plot(st_geometry(map), add=TRUE, border="blue")
   
-  ee <- get_modis(collections="io-lulc-annual-v02", 
-                    asset_key="data", 
-                    what=map[14, ],
-                    datetime=NULL)
-  
-  ff <- get_modis(collections="era5-pds", 
-                  asset_key="geoparquet-items", 
-                  what=c(30, 2, 32, 4),
-                  datetime="2023-11-01/2024-02-28")
+  a7 <- get_modis(collections="io-lulc-annual-v02", 
+                  asset_key="data", 
+                  what=map[14, ],
+                  datetime=NULL)
 }
