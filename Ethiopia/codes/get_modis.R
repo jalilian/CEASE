@@ -167,7 +167,7 @@ get_modis <- local({
                                coords, crs="EPSG:4326", 
                                datetime, output_dir=tempdir())
   {
-    coords <- vect(xy, crs=crs)
+    coords <- vect(coords, crs=crs)
     bbox <- as.vector(terra::ext(coords))
     bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
     
