@@ -139,15 +139,25 @@ get_modis <- local({
     assets <- tibble(asset_ids, asset_links) %>%
       mutate(across(all_of(asset_key), ~ map(.x, rast)))
     
+    
+    # sinusoidal projection CRS used by MODIS
+    sincrs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=m"
+    # project the bounding box to the sinusoidal CRS
+    sbbox <- rast(terra::ext(bbox, xy=TRUE), crs=crs)
+    sbbox <- terra::ext(terra::project(sbbox, sincrs))
     assets <- assets %>%
       group_by(date) %>% 
       summarize(across(all_of(asset_key),
                        ~ {
-                         mos <- Reduce(function(x, y) mosaic(x, y, fun="mean"), 
+                         # combine adjacent raster tiles
+                         mos <- Reduce(function(x, y) terra::mosaic(x, y, 
+                                                                    fun="mean"), 
                                        .x)
-                         mos <- terra::project(mos, crs)
+                         # crop the mosaic to the bounding box if crop is TRUE
                          if (crop)
-                           mos <- terra::crop(mos, ext(bbox, xy=TRUE))
+                           mos <- crop(mos, sbbox)
+                         # project the raster to the target CRS
+                         mos <- terra::project(mos, crs)
                          list(mos)
                        }),
                 .groups = "drop")
@@ -159,7 +169,8 @@ get_modis <- local({
     if (aggregate)
     {
       assets <- assets %>%
-        mutate(date=factor(paste(year(date),  month(date, label=FALSE), 
+        mutate(date=factor(paste(year(date),  
+                                 month(date, label=FALSE), 
                                   sep="-"))) %>%
         group_by(date) %>% 
         summarize(across(all_of(asset_key), 
