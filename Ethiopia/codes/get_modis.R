@@ -85,7 +85,7 @@ get_modis <- local({
   {
     if (!any(startsWith(collections, c("modis-", "io-lulc"))))
       stop("Implemented for the modis and io-lulc products")
-    
+      
     # STAC web service: Microsoft Planetary Computer 
     items <- stac("https://planetarycomputer.microsoft.com/api/stac/v1") %>%
       # STAC search API
@@ -105,13 +105,20 @@ get_modis <- local({
       items_sign(sign_fn=sign_planetary_computer()) %>%
       # fetch all STAC Items
       items_fetch()
+    
+    if (!all(unlist(map(items$features, ~ asset_key %in% names(.x$assets)))))
+      stop("asset_key is not available for some or all of features")
+    
+    # select the assets in asset_key
+    items <- items %>% 
+      assets_select(asset_names=asset_key)
 
     # extract asset IDs
     asset_ids <- handel_ids(items)
     
     # download items
     download_items <- items %>%
-      assets_download(assets_name="map", 
+      assets_download(asset_names = asset_key, 
                       items_max=length(items$features), 
                       overwrite=TRUE, output_dir=output_dir)
     
