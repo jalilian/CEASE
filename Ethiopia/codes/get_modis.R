@@ -169,9 +169,7 @@ get_modis <- local({
     if (aggregate)
     {
       assets <- assets %>%
-        mutate(date=factor(paste(year(date),  
-                                 month(date, label=FALSE), 
-                                  sep="-"))) %>%
+        mutate(date=paste(year(date), month(date), sep="-")) %>%
         group_by(date) %>% 
         summarize(across(all_of(asset_key), 
                          ~ list(app(rast(.x), mean, na.rm=TRUE))
@@ -183,6 +181,7 @@ get_modis <- local({
   
   get_modis_points <- function(collections, asset_key,
                                coords, crs="EPSG:4326", 
+                               aggregate=FALSE,
                                datetime, output_dir=tempdir())
   {
     coords <- vect(coords, crs=crs)
@@ -193,6 +192,7 @@ get_modis <- local({
                    asset_key=asset_key, 
                    bbox=bbox, crs=crs, 
                    datetime=datetime,
+                   aggregate=aggregate,
                    output_dir=output_dir) %>% 
       group_by(date) %>% 
       summarize(across(all_of(asset_key),
@@ -212,7 +212,9 @@ get_modis <- local({
   
   get_modis_map <- function(collections, asset_key,
                             map, crs="EPSG:4326", 
-                            datetime, output_dir=tempdir())
+                            datetime, 
+                            aggregate=FALSE,
+                            output_dir=tempdir())
   {
     library("sf")
     cmap <- st_transform(map, crs=crs)
@@ -223,6 +225,7 @@ get_modis <- local({
                    asset_key=asset_key, 
                    bbox=bbox, 
                    datetime=datetime,
+                   aggregate=aggregate,
                    output_dir=output_dir) %>% 
       group_by(date) %>% 
       summarize(across(all_of(asset_key),
@@ -235,14 +238,17 @@ get_modis <- local({
   
   get_modis_data <- function(collections, asset_key,
                              what, crs="EPSG:4326", 
-                             datetime, output_dir=tempdir())
+                             datetime,
+                             aggregate=FALSE,
+                             output_dir=tempdir())
   {
     switch(class(what)[1], numeric={
       if (length(what) == 4)
         get_modis_bbox(collections=collections, 
                        asset_key=asset_key,
                        bbox=what, datetime=datetime, 
-                       crs=crs, output_dir=output_dir)
+                       crs=crs, aggregate=aggregate,
+                       output_dir=output_dir)
       else
         stop("numeric vector of length 4 is required")
     }, matrix={
@@ -252,12 +258,14 @@ get_modis <- local({
                        asset_key=asset_key,
                        coords=what, crs=crs, 
                        datetime=datetime, 
+                       aggregate=aggregate,
                        output_dir=output_dir)
     }, sf={
       get_modis_map(collections=collections, 
                     asset_key=asset_key,
                     map=what, crs=crs, 
                     datetime=datetime, 
+                    aggregate=aggregate,
                     output_dir=output_dir)
     })
   }
@@ -265,7 +273,9 @@ get_modis <- local({
   get_modis_all <- function(collections=names(ca), 
                             asset_key=unname(ca),
                             what, crs="EPSG:4326", 
-                            datetime, output_dir=tempdir())
+                            datetime, 
+                            aggregate=FALSE,
+                            output_dir=tempdir())
   {
     nc <- length(collections)
     if (nc == 1)
@@ -274,6 +284,7 @@ get_modis <- local({
                      asset_key=asset_key,
                      what=what, crs=crs, 
                      datetime=datetime, 
+                     aggregate=aggregate,
                      output_dir=output_dir)
     } else{
       if (is.list(asset_key) & (length(asset_key) == nc))
@@ -281,7 +292,7 @@ get_modis <- local({
         mapply(get_modis_data, 
                collections=collections,
                asset_key=asset_key,
-               MoreArgs=list(what=what, datetime=datetime),
+               MoreArgs=list(what=what, datetime=datetime, aggregate=aggregate),
                SIMPLIFY=FALSE)
       } else{
         stop("collections and asset_keys must have the same length")
