@@ -184,9 +184,11 @@ get_modis <- local({
                                aggregate=FALSE,
                                datetime, output_dir=tempdir())
   {
-    coords <- vect(coords, crs=crs)
-    bbox <- as.vector(terra::ext(coords))
+    # extract the bounding box of coordinates
+    bbox <- as.vector(terra::ext(vect(coords, crs=crs)))
     bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
+    # expand the bounding box by 0.1 units in all directions
+    bbox <- bbox + c(-1, -1, 1, 1) * 0.1
     
     get_modis_bbox(collections=collections, 
                    asset_key=asset_key, 
@@ -197,7 +199,9 @@ get_modis <- local({
       group_by(date) %>% 
       summarize(across(all_of(asset_key),
                        ~ lapply(.x, function(o){ 
-                         terra::extract(o, coords, ID=FALSE, xy=TRUE)
+                         terra::extract(o, coords, 
+                                        method="bilinear", 
+                                        ID=FALSE, xy=TRUE)
                        })
       )) %>%
       unnest(cols=all_of(asset_key), names_sep="__") %>%
