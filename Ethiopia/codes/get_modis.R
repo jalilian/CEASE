@@ -10,9 +10,9 @@ get_modis <- local({
     "modis-11A2-061" = c(
       "LST_Day_1km", # 8-day daytime 1km grid Landsurface Temperature
       "LST_Night_1km" # 8-day nighttime 1km grid Landsurface Temperature
-    ), 
-    # MODIS Gross Primary Productivity 8-Day Gap-Filled (500m)
-    "modis-17A2HGF-061" = c(
+    ),
+    # MODIS Gross Primary Productivity 8-Day (500m)
+    "modis-17A2H-061" = c(
       "Gpp_500m", # Gross Primary Productivity
       "PsnNet_500m" # Net Photosynthesis
     ),
