@@ -42,6 +42,19 @@ get_modis <- local({
     )
   )
   
+  fill_in_gap <- function(r, w=NULL)
+  {
+    if (is.null(w))
+      w <- 1 / (1 + outer(seq(-4, 4), seq(-4, 4), 
+                          function(x, y){ (x^2 + y^2) }))
+    while (any(is.na(values(r)))) 
+    {
+      # apply the focal mean to fill NA values
+      r <- focal(r, w=w, fun="mean", na.rm=TRUE, na.policy="only")
+    }
+    return(r)
+  }
+  
   handel_ids <- function(items)
   {
     map2(
@@ -80,6 +93,7 @@ get_modis <- local({
   get_modis_bbox <- function(collections, asset_key,
                              bbox, crs="EPSG:4326", 
                              datetime, crop=TRUE, 
+                             fill_in=FALSE,
                              aggregate=FALSE,
                              output_dir=tempdir())
   {
@@ -173,34 +187,46 @@ get_modis <- local({
         group_by(date) %>% 
         summarize(across(all_of(asset_key), 
                          ~ list(app(rast(.x), mean, na.rm=TRUE))
-        ),
-        .groups="drop")
+        ), .groups="drop")
+    }
+    
+    if (fill_in)
+    {
+      assets <- assets %>%
+        group_by(date) %>% 
+        summarize(across(all_of(asset_key), 
+                         ~ lapply(.x, fill_in_gap)
+        ), .groups="drop")
     }
     return(assets)
   }
   
   get_modis_points <- function(collections, asset_key,
                                coords, crs="EPSG:4326", 
+                               fill_in=FALSE,
                                aggregate=FALSE,
                                datetime, output_dir=tempdir())
   {
+    coords <- vect(coords, crs=crs)
     # extract the bounding box of coordinates
-    bbox <- as.vector(terra::ext(vect(coords, crs=crs)))
+    bbox <- as.vector(terra::ext(coords))
     bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
     # expand the bounding box by 0.1 units in all directions
-    bbox <- bbox + c(-1, -1, 1, 1) * 0.1
+    bbox <- bbox + c(-1, -1, 1, 1) * 0.2
     
     get_modis_bbox(collections=collections, 
                    asset_key=asset_key, 
                    bbox=bbox, crs=crs, 
                    datetime=datetime,
+                   fill_in=fill_in,
                    aggregate=aggregate,
                    output_dir=output_dir) %>% 
       group_by(date) %>% 
       summarize(across(all_of(asset_key),
                        ~ lapply(.x, function(o){ 
+
                          terra::extract(o, coords, 
-                                        method="bilinear", 
+                                        method="simple", 
                                         ID=FALSE, xy=TRUE)
                        })
       )) %>%
@@ -217,6 +243,7 @@ get_modis <- local({
   get_modis_map <- function(collections, asset_key,
                             map, crs="EPSG:4326", 
                             datetime, 
+                            fill_in=FALSE,
                             aggregate=FALSE,
                             output_dir=tempdir())
   {
@@ -229,6 +256,7 @@ get_modis <- local({
                    asset_key=asset_key, 
                    bbox=bbox, 
                    datetime=datetime,
+                   fill_in=fill_in,
                    aggregate=aggregate,
                    output_dir=output_dir) %>% 
       group_by(date) %>% 
@@ -243,6 +271,7 @@ get_modis <- local({
   get_modis_data <- function(collections, asset_key,
                              what, crs="EPSG:4326", 
                              datetime,
+                             fill_in=FALSE,
                              aggregate=FALSE,
                              output_dir=tempdir())
   {
@@ -251,7 +280,9 @@ get_modis <- local({
         get_modis_bbox(collections=collections, 
                        asset_key=asset_key,
                        bbox=what, datetime=datetime, 
-                       crs=crs, aggregate=aggregate,
+                       crs=crs,
+                       fill_in=fill_in,
+                       aggregate=aggregate,
                        output_dir=output_dir)
       else
         stop("numeric vector of length 4 is required")
@@ -262,6 +293,7 @@ get_modis <- local({
                        asset_key=asset_key,
                        coords=what, crs=crs, 
                        datetime=datetime, 
+                       fill_in=fill_in,
                        aggregate=aggregate,
                        output_dir=output_dir)
     }, sf={
@@ -269,6 +301,7 @@ get_modis <- local({
                     asset_key=asset_key,
                     map=what, crs=crs, 
                     datetime=datetime, 
+                    fill_in=fill_in,
                     aggregate=aggregate,
                     output_dir=output_dir)
     })
@@ -278,6 +311,7 @@ get_modis <- local({
                             asset_key=unname(ca),
                             what, crs="EPSG:4326", 
                             datetime, 
+                            fill_in=FALSE,
                             aggregate=FALSE,
                             output_dir=tempdir())
   {
@@ -288,6 +322,7 @@ get_modis <- local({
                      asset_key=asset_key,
                      what=what, crs=crs, 
                      datetime=datetime, 
+                     fill_in=fill_in,
                      aggregate=aggregate,
                      output_dir=output_dir)
     } else{
@@ -296,7 +331,8 @@ get_modis <- local({
         mapply(get_modis_data, 
                collections=collections,
                asset_key=asset_key,
-               MoreArgs=list(what=what, datetime=datetime, aggregate=aggregate),
+               MoreArgs=list(what=what, datetime=datetime, 
+                             fill_in=fill_in, aggregate=aggregate),
                SIMPLIFY=FALSE)
       } else{
         stop("collections and asset_keys must have the same length")
