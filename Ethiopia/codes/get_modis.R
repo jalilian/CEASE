@@ -227,16 +227,12 @@ get_modis <- local({
 
                          terra::extract(o, coords, 
                                         method="simple", 
-                                        ID=FALSE, xy=TRUE)
+                                        ID=FALSE)
                        })
       )) %>%
-      unnest(cols=all_of(asset_key), names_sep="__") %>%
-      rename_with(~ gsub("__mean", "", .x), 
-                  .cols = contains("__mean")) %>%
-      select(-matches("__x$") | matches("__x$")[1]) %>%
-      rename(long = matches("__x$")[1]) %>%
-      select(-matches("__y$") | matches("__y$")[1]) %>%
-      rename(lat = matches("__y$")[1]) %>%
+      mutate(long=lapply(date, function(a) geom(coords)[, "x"]),
+             lat=lapply(date, function(a) geom(coords)[, "y"])) %>%
+      unnest(cols=all_of(c(asset_key, "long", "lat"))) %>%
       relocate(long, lat, .after=date)
   }
   
