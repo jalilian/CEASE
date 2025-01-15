@@ -196,7 +196,8 @@ get_modis <- local({
         group_by(date) %>% 
         summarize(across(all_of(asset_key), 
                          ~ lapply(.x, fill_in_gap)
-        ), .groups="drop")
+        ), .groups="drop") %>%
+        rename_with(~ gsub("__focal", "", .))
     }
     return(assets)
   }
