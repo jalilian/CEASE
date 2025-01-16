@@ -473,7 +473,7 @@ local({
     {
       dat <- dat %>% 
         group_by(date) %>% 
-        summarize(across(all_of(asset_key),
+        summarize(across(all_of("data"),
                          ~ lapply(.x, function(o){ 
                            
                            terra::extract(o, coords, 
