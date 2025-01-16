@@ -483,7 +483,7 @@ local({
         )) %>%
         mutate(long=lapply(date, function(a) geom(coords)[, "x"]),
                lat=lapply(date, function(a) geom(coords)[, "y"])) %>%
-        unnest(cols=all_of(c(asset_key, "long", "lat")),
+        unnest(cols=all_of(c("data", "long", "lat")),
                names_sep="__") %>%
         rename_with(~ gsub("_mean$", "", .)) %>%
         relocate(long, lat, .after=date)
