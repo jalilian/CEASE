@@ -47,6 +47,15 @@ local({
         # tiles are 6 degrees of longitude wide for north-south zones
         tile <- parts[1]
         return(data.frame(date=date, tile=tile))
+      } else if (startsWith(collection, "esa-worldcover"))
+      {
+        # ESA WorldCover
+        parts <- strsplit(id_name, "_")[[1]]
+        # date: year
+        date <- parts[4]
+        # tiles are 6 degrees of longitude wide for north-west zones
+        tile <- parts[6]
+        return(data.frame(date=date, tile=tile))
       } else {
         stop("Collection type not recognized")
       }
@@ -62,7 +71,8 @@ local({
                                output_dir=tempdir(),
                                clean_dir=FALSE)
   {
-    if (!any(startsWith(collections, c("modis-", "io-lulc"))))
+    if (!any(startsWith(collections, 
+                        c("modis-", "io-lulc", "esa-worldcover"))))
       stop("Implemented for the modis and io-lulc products")
     
     # STAC web service: Microsoft Planetary Computer 
@@ -421,7 +431,7 @@ local({
       bbox <- as.vector(terra::ext(coords))
       bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
       # expand the bounding box by 0.1 units in all directions
-      bbox <- bbox + c(-1, -1, 1, 1) * 0.25
+      bbox <- bbox + c(-1, -1, 1, 1) * 0.2
     }, sf={
       library("sf")
       cmap <- st_transform(what, crs=crs)
@@ -464,7 +474,7 @@ local({
         # non-finite or integer values to NA
         v[(!is.finite(v))] <- NA
         # handling non-integer values
-        v <- round(v) # v[v %% 1 != 0] <- NA
+        v[v %% 1 != 0] <- NA # v <- round(v) # 
         values(r) <- levs[v]
         if (fact > 0)
           r <- aggregate(r, fact=fact, fun="modal", na.rm=TRUE)
@@ -584,5 +594,10 @@ if (FALSE)
 
   a9 <- get_lulc(what=c(46.9, 34.2, 47.2, 34.5),
                   datetime="2023-01-01")
+  
+  a10 <- get_modis(collections="esa-worldcover", 
+                   asset_key="map",
+                   what=c(-3.2, 5.2, 1.5, 7.2), 
+                   datetime="2021-01-01")
   
 }
