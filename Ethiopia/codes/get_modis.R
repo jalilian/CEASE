@@ -421,7 +421,7 @@ local({
       bbox <- as.vector(terra::ext(coords))
       bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
       # expand the bounding box by 0.1 units in all directions
-      bbox <- bbox + c(-1, -1, 1, 1) * 0.1
+      bbox <- bbox + c(-1, -1, 1, 1) * 0.25
     }, sf={
       library("sf")
       cmap <- st_transform(what, crs=crs)
@@ -560,30 +560,27 @@ if (FALSE)
   
   # MODIS Burned Area Monthly
   map <- sf::read_sf("https://geodata.ucdavis.edu/gadm/gadm4.1/kmz/gadm41_IRN_1.kmz")
-  a6 <- get_modis(collections="modis-64A1-061",
+  a8 <- get_modis(collections="modis-64A1-061",
                   asset_key = c("Burn_Date", # Burn day of year
                                 "Burn_Date_Uncertainty"# Estimated uncertainty in burn day
                   ),
                   what=map[14, ],
                   datetime="2024-06-01/2024-10-30")
   par(mfrow=c(2, 2))
-  plot(a6$Burn_Date[[1]], col=rev(heat.colors(100)), 
+  plot(a8$Burn_Date[[1]], col=rev(heat.colors(100)), 
        colNA = "black", main=as.character(a6$date[[1]]))
   plot(st_geometry(map), add=TRUE, border="blue")
-  plot(a6$Burn_Date[[2]], col=rev(heat.colors(100)), 
+  plot(a8$Burn_Date[[2]], col=rev(heat.colors(100)), 
        colNA = "black", main=as.character(a6$date[[2]]))
   plot(st_geometry(map), add=TRUE, border="blue")
-  plot(a6$Burn_Date[[3]], col=rev(heat.colors(100)), 
+  plot(a8$Burn_Date[[3]], col=rev(heat.colors(100)), 
        colNA = "black", main=as.character(a6$date[[3]]))
   plot(st_geometry(map), add=TRUE, border="blue")
-  plot(a6$Burn_Date[[4]], col=rev(heat.colors(100)), 
+  plot(a8$Burn_Date[[4]], col=rev(heat.colors(100)), 
        colNA = "black", main=as.character(a6$date[[4]]))
   plot(st_geometry(map), add=TRUE, border="blue")
-  
 
-  a7 <- get_modis(collections="io-lulc-annual-v02", 
-                  asset_key="data", 
-                  what=c(46, 34, 47, 35),
+  a9 <- get_lulc(what=c(46.9, 34.2, 47.2, 34.5),
                   datetime="2023-01-01")
   
 }
