@@ -43,6 +43,7 @@ get_covars <- local({
   # function to read and extract raster data
   extract_raster_covars <- function(downloaded_file,
                                     data_file,
+                                    fact=0,
                                     temp_dir)
   {
     # create a temporary directory to extract the downloaded file
@@ -62,7 +63,8 @@ get_covars <- local({
     
     # read the raster data using the 'terra' package
     raster <- terra::rast(paste0(temp_dir, "/", data_file))
-    
+    if (fact > 0)
+      raster <- aggregate(raster, fact=fact, fun="modal", na.rm=TRUE)
     return(raster)
   }
   
@@ -90,6 +92,7 @@ get_covars <- local({
   
   get_land_covers_points <- function(coords, 
                                      path,
+                                     fact=0,
                                      temp_dir=NULL)
   {
     covars <- vector("list", length=length(files))
@@ -97,6 +100,7 @@ get_covars <- local({
     {
       r <- extract_raster_covars(paste0(path, files[[j]][1]),
                                  files[[j]][2],
+                                 fact=fact,
                                  temp_dir)
       covars[[j]] <- terra::extract(r, coords)
     }
@@ -105,6 +109,7 @@ get_covars <- local({
   
   get_land_covars_polygon <- function(map,
                                       path,
+                                      fact=0,
                                       temp_dir=NULL)
   {
     covars <- vector("list", length=length(files))
@@ -112,6 +117,7 @@ get_covars <- local({
     {
       r <- extract_raster_covars(paste0(path, files[[j]][1]),
                                  files[[j]][2],
+                                 fact=fact,
                                  temp_dir)
       #map <- sf::st_transform(map, crs(r))
       out <- vector("list", length=nrow(map))
@@ -139,14 +145,14 @@ get_covars <- local({
     data.frame(covars)
   }
   
-  get_land_covars <- function(input, path, temp_dir=NULL)
+  get_land_covars <- function(input, path, fact=0, temp_dir=NULL)
   {
     if (is(input, "matrix"))
     {
-      get_land_covers_points(input, path, temp_dir)
+      get_land_covers_points(input, path, fact=fact, temp_dir)
     } else{
       if (is(input, "sf"))
-        get_land_covars_polygon(input, path, temp_dir)
+        get_land_covars_polygon(input, path, fact=fact, temp_dir)
       else
         print("wrong input type")
     }
