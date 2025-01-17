@@ -402,16 +402,16 @@ local({
 
   
   get_lulc <- function(what, datetime, 
-                       crs="EPSG:4326", 
-                       crop=TRUE,
+                       crs="EPSG:4326",
                        fact=0,
                        output_dir=tempdir(),
                        clean_dir=FALSE)
   {
     switch(class(what)[1], numeric={
       if (length(what) == 4)
+      {
         bbox <- what
-      else
+      } else
         stop("numeric vector of length 4 is required")
     }, matrix={
       if (ncol(what) != 2)
@@ -421,7 +421,7 @@ local({
       bbox <- as.vector(terra::ext(coords))
       bbox <- unname(bbox[c("xmin", "ymin", "xmax", "ymax")])
       # expand the bounding box by 0.1 units in all directions
-      bbox <- bbox + c(-1, -1, 1, 1) * 0.2
+      bbox <- bbox + c(-1, -1, 1, 1) * 0.1
     }, sf={
       library("sf")
       cmap <- st_transform(what, crs=crs)
@@ -436,7 +436,7 @@ local({
                             bbox=bbox, 
                             datetime=datetime,
                             crs=crs,
-                            crop=crop,
+                            crop=TRUE,
                             fill_in=FALSE,
                             aggregate=FALSE,
                             output_dir=output_dir,
@@ -483,9 +483,7 @@ local({
         )) %>%
         mutate(long=lapply(date, function(a) geom(coords)[, "x"]),
                lat=lapply(date, function(a) geom(coords)[, "y"])) %>%
-        unnest(cols=all_of(c("data", "long", "lat")),
-               names_sep="__") %>%
-        rename_with(~ gsub("_mean$", "", .)) %>%
+        unnest(cols=c("data", "long", "lat")) %>%
         relocate(long, lat, .after=date)
     } else if (class(what)[1] == "sf")
     {
