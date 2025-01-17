@@ -462,7 +462,9 @@ local({
       {
         v <- values(r)
         # non-finite or integer values to NA
-        v[(!is.finite(v)) | (v %% 1 != 0)] <- NA
+        v[(!is.finite(v))] <- NA
+        # handling non-integer values
+        v <- round(v)
         values(r) <- levs[v]
         if (fact > 0)
           r <- aggregate(r, fact=fact, fun="modal", na.rm=TRUE)
