@@ -89,7 +89,6 @@ get_covars <- local({
     )
   )
   
-  
   get_land_covers_points <- function(coords, 
                                      path,
                                      fact=0,

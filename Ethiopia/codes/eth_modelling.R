@@ -791,6 +791,20 @@ ggarrange(g0,
   ncol=1, nrow=2)
 dev.off()
 
+u %>%
+  left_join(data.frame(hcc, ZoneName=names(hcc)),
+            by=join_by(ZoneName)) %>% 
+  mutate(Epidemic_Week=rep(1:53, 90)) %>%
+  ggplot(aes(x=Epidemic_Week, y=mean, group=ZoneName)) +
+  geom_ribbon(aes(ymin=`0.025quant`, ymax=`0.975quant`),
+              alpha=0.2, col=NA, fill="blue") +
+  geom_line(col="navy", alpha=0.5) +
+  geom_hline(aes(yintercept = 0), col="red", linetype="dashed") +
+  labs(x="epidemic week", y="seasonal effect") +
+  theme_light() + 
+  facet_wrap(~hcc, ncol=1) + 
+  theme(strip.background =element_rect(fill="blue4"))
+
 #library(ggdendro)
 #ggdendrogram(hc, rotate = FALSE, size = 2)
 # Bayesian R2
